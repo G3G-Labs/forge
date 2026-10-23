@@ -162,11 +162,14 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
         {
             if (Shell is not { } shell)
             {
-                _ctx.Notifier.Show($"O shell \"{ShellId}\" não foi encontrado nesta máquina.", "Escolha outro em Configurar aba ou Configurar grupo.", isError: true);
+                _ctx.Notifier.Show($"O shell \"{ShellId}\" não foi encontrado nesta máquina.", "Escolha outro ambiente ou terminal em Configurar aba.", isError: true);
                 return;
             }
             _status = new TabStatus();
             _session = _ctx.Sessions.Start(Model, shell);
+            // A distro já está ligada: bom momento para conferir os shells instalados nela e a home do usuário.
+            if (shell.Distro is { } distro)
+                _ = Group.Owner.DescribeDistroAsync(distro);
             _session.ShellEventReceived += OnShellEvent;
             _status.ShellStarted();
             State = _status.State;
@@ -307,6 +310,7 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
     public void ModelChanged()
     {
         OnPropertyChanged(nameof(Subtitle));
+        OnPropertyChanged(nameof(Shell));
         OnPropertyChanged(nameof(ShellName));
         OnPropertyChanged(nameof(HasStartup));
         OnPropertyChanged(nameof(Color));

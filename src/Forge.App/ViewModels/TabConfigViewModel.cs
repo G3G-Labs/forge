@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Forge.Core.Models;
+using Forge.Core.Shells;
 using Forge.Core.Workspaces;
 
 namespace Forge.App.ViewModels;
@@ -23,7 +24,7 @@ public sealed partial class EnvVarViewModel(TabConfigViewModel owner) : Observab
     private void Remove() => owner.RemoveEnv(this);
 }
 
-/// <summary>Um tipo de aba na lista do painel ("Windows · PowerShell 7", "WSL · Debian").</summary>
+/// <summary>Um terminal na lista do painel, já filtrada pelo ambiente ("PowerShell 7", "zsh", "bash (padrão)").</summary>
 public sealed record ShellChoice(string? Id, string Label);
 
 /// <summary>
@@ -49,6 +50,18 @@ public sealed partial class TabConfigViewModel : ObservableObject
 
     public IReadOnlyList<ColorOption> Colors { get; } = ColorOption.CreateSet();
 
+    /// <summary>"Windows", "WSL · Debian"…: onde o projeto está.</summary>
+    [ObservableProperty]
+    private IReadOnlyList<string> _environments = [];
+
+    [ObservableProperty]
+    private string? _environmentChoice;
+
+    /// <summary>A distro escolhida está sendo lida (shells instalados e home).</summary>
+    [ObservableProperty]
+    private bool _isDetecting;
+
+    /// <summary>Os terminais do ambiente escolhido.</summary>
     [ObservableProperty]
     private IReadOnlyList<ShellChoice> _shellChoices = [];
 
@@ -94,10 +107,9 @@ public sealed partial class TabConfigViewModel : ObservableObject
     public void Load()
     {
         _loading = true;
-        ShellChoices = _ctx.Shells.Profiles
-            .Select(p => new ShellChoice(p.Id, p.IsWsl ? $"WSL · {p.Name}" : p.Kind == ShellKind.Custom ? p.Name : $"Windows · {p.Name}"))
-            .ToList();
-        ShellChoice = ShellChoices.FirstOrDefault(c => c.Id == _tab.ShellId);
+        Environments = _ctx.Shells.Environments;
+        EnvironmentChoice = _tab.Shell?.Environment ?? Environments.FirstOrDefault();
+        FillTerminals();
         Cwd = Model.Cwd ?? "";
         Startup = Model.Startup ?? "";
         Autostart = Model.Autostart;
@@ -115,12 +127,75 @@ public sealed partial class TabConfigViewModel : ObservableObject
         _loading = false;
     }
 
+    private void FillTerminals()
+    {
+        ShellChoices = _ctx.Shells.Profiles
+            .Where(p => p.Environment == EnvironmentChoice)
+            .Select(p => new ShellChoice(p.Id, p.Terminal))
+            .ToList();
+        ShellChoice = ShellChoices.FirstOrDefault(c => c.Id == _tab.ShellId);
+    }
+
+    /// <summary>
+    /// Trocou o ambiente: fica o mesmo terminal, se ele existir lá (PowerShell no Windows → PowerShell na distro), ou
+    /// o padrão do ambiente. Uma distro ainda não lida é lida agora, para oferecer os shells instalados nela.
+    /// </summary>
+    partial void OnEnvironmentChoiceChanged(string? value)
+    {
+        if (_loading || value is null)
+            return;
+        var current = _tab.Shell;
+        var options = _ctx.Shells.Profiles.Where(p => p.Environment == value).ToList();
+        var next = options.FirstOrDefault(p => current is not null && !current.IsWsl && p.SettingsId == current.SettingsId) ?? options.FirstOrDefault();
+        _loading = true;
+        FillTerminals();
+        _loading = false;
+        if (next is not null)
+            ShellChoice = ShellChoices.FirstOrDefault(c => c.Id == next.Id);
+        if (next?.Distro is { } distro && !_ctx.Settings.Current.WslDistros.ContainsKey(distro))
+            _ = DetectAsync(distro);
+    }
+
+    private async Task DetectAsync(string distro)
+    {
+        IsDetecting = true;
+        try
+        {
+            await _tab.Group.Owner.DescribeDistroAsync(distro);
+        }
+        finally
+        {
+            IsDetecting = false;
+        }
+        Load();
+    }
+
     partial void OnShellChoiceChanged(ShellChoice? value)
     {
         if (_loading || value is null || value.Id == _tab.ShellId)
             return;
-        Save(m => m.Shell = value.Id, restart: true);
+        var from = _tab.Shell;
+        var to = _ctx.Shells.Find(value.Id!);
+        Save(m =>
+        {
+            m.Shell = value.Id;
+            // Saindo da distro para o Windows: /home/dev/api passa a ser \\wsl.localhost\Debian\home\dev\api.
+            if (from?.Distro is { } distro && to is { InWsl: false })
+            {
+                m.Cwd = ToWindows(m.Cwd, distro);
+                m.LastCwd = ToWindows(m.LastCwd, distro);
+            }
+        }, restart: true);
+        if (to is { InWsl: false } && from is { InWsl: true })
+        {
+            _loading = true;
+            Cwd = Model.Cwd ?? "";
+            _loading = false;
+        }
     }
+
+    private static string? ToWindows(string? folder, string distro) =>
+        folder is not null && folder.StartsWith('/') ? PathMapper.ToWindows(folder, distro) : folder;
 
     partial void OnCwdChanged(string value)
     {

@@ -88,11 +88,27 @@
             </StackPanel>
 
             <!-- Onde a aba roda -->
-            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,14">
-                <TextBlock Text="Shell" Style="{StaticResource Forge.FieldLabel}" />
-                <ComboBox ItemsSource="{Binding ShellChoices}" SelectedItem="{Binding ShellChoice}" DisplayMemberPath="Label"
-                          AutomationProperties.Name="Shell da aba" />
-            </StackPanel>
+            <Grid Grid.Row="2" Grid.Column="0" Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Ambiente" Style="{StaticResource Forge.FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding Environments}" SelectedItem="{Binding EnvironmentChoice}"
+                              AutomationProperties.Name="Ambiente da aba (Windows ou distro WSL)"
+                              ToolTip="Onde o projeto está. Numa distro WSL, dá para abrir os shells do Linux e também os terminais do Windows na pasta da distro." />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Terminal" Style="{StaticResource Forge.FieldLabel}" />
+                    <ComboBox ItemsSource="{Binding ShellChoices}" SelectedItem="{Binding ShellChoice}" DisplayMemberPath="Label"
+                              AutomationProperties.Name="Terminal da aba" />
+                    <TextBlock Text="Procurando shells na distro…" FontSize="11.5" Margin="0,4,0,0"
+                               Foreground="{DynamicResource Forge.TextMutedBrush}"
+                               Visibility="{Binding IsDetecting, Converter={StaticResource BoolToVisibility}}" />
+                </StackPanel>
+            </Grid>
             <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,14">
                 <TextBlock Text="Pasta fixa (opcional)" Style="{StaticResource Forge.FieldLabel}" />
                 <DockPanel>
@@ -156,7 +172,7 @@
                 <DockPanel>
                     <Button DockPanel.Dock="Right" Style="{StaticResource Forge.SecondaryButton}" Height="28" Content="Reiniciar shell agora"
                             Command="{Binding RestartNowCommand}" />
-                    <TextBlock Text="Shell, pasta e variáveis valem quando o shell reabre." FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                    <TextBlock Text="Ambiente, terminal, pasta e variáveis valem quando o shell reabre." FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
                                Margin="0,0,10,0" />
                 </DockPanel>
             </Border>

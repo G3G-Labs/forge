@@ -13,7 +13,7 @@ public sealed class ExternalApps(IProcessRunner runner)
     /// </summary>
     public void OpenInVsCode(string folder, ShellProfile shell)
     {
-        if (shell.IsWsl)
+        if (shell.InWsl)
             runner.Launch("cmd.exe", ["/c", "code", "--remote", "wsl+" + shell.Distro, PathMapper.ToWsl(folder)], hidden: true);
         else
             runner.Launch("cmd.exe", ["/c", "code", WindowsPath(folder, shell)], hidden: true);
@@ -25,7 +25,7 @@ public sealed class ExternalApps(IProcessRunner runner)
     /// <summary>A pasta como o Windows a enxerga, para o Explorer, o VS Code e o "Copiar caminho".</summary>
     public static string WindowsPath(string folder, ShellProfile shell)
     {
-        if (shell.IsWsl && PathMapper.IsLinuxPath(folder))
+        if (shell.InWsl && PathMapper.IsLinuxPath(folder))
             return PathMapper.ToWindows(folder, shell.Distro!);
         if (shell.Kind == ShellKind.GitBash && folder.Length >= 2 && folder[0] == '/' && (folder.Length == 2 || folder[2] == '/'))
             return char.ToUpperInvariant(folder[1]) + @":\" + (folder.Length > 3 ? folder[3..].Replace('/', '\\') : "");

@@ -56,7 +56,8 @@ public static class PathMapper
 
     /// <summary>
     /// Pasta de um OSC 7 (file://host/caminho, com %XX): "file://pc/home/dev" → "/home/dev",
-    /// "file:///C:/dev/web" → "C:\dev\web". Null se não for um file://.
+    /// "file:///C:/dev/web" → "C:\dev\web", "file:////wsl.localhost/Debian/home" → "\\wsl.localhost\Debian\home"
+    /// (terminal do Windows aberto numa distro). Null se não for um file://.
     /// </summary>
     public static string? FromFileUri(string uri)
     {
@@ -71,6 +72,9 @@ public static class PathMapper
         // /C:/dev/web → C:\dev\web
         if (path.Length >= 3 && path[0] == '/' && char.IsAsciiLetter(path[1]) && path[2] == ':')
             return path[1..].Replace('/', '\\');
+        // //servidor/pasta → \\servidor\pasta
+        if (path.StartsWith("//", StringComparison.Ordinal))
+            return path.Replace('/', '\\');
         return path;
     }
 

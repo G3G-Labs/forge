@@ -52,16 +52,17 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly HistoryStore _history;
     private readonly Notifier _notifier;
     private readonly AppPaths _paths;
+    private readonly ShellCatalog _shells;
 
     public SettingsViewModel(SettingsStore settings, ShellCatalog shells, HistoryStore history, Notifier notifier, AppPaths paths)
     {
         _settings = settings;
+        _shells = shells;
         _history = history;
         _notifier = notifier;
         _paths = paths;
         About = new AboutViewModel(notifier);
-        foreach (var profile in shells.Profiles)
-            ShellRows.Add(new ShellRowViewModel(profile, settings));
+        FillShellRows();
         foreach (var action in ShortcutMap.Actions)
             Shortcuts.Add(new ShortcutRow(action.Label, ShortcutMap.GestureFor(action, settings.Current)));
         Shortcuts.Add(new ShortcutRow("Ir para a aba 1–9", "Ctrl+1…9"));
@@ -152,6 +153,40 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private string _newProfileArguments = "";
+
+    /// <summary>Lê de novo os shells de cada distro. Definido pelo App (quem detecta é a janela principal).</summary>
+    public Func<Task>? DetectWsl { get; set; }
+
+    public bool HasWsl => _shells.Distros.Count > 0;
+
+    [ObservableProperty]
+    private bool _isDetectingWsl;
+
+    // Os terminais do Windows abertos numa distro seguem as preferências do terminal do Windows: não têm linha própria.
+    private void FillShellRows()
+    {
+        ShellRows.Clear();
+        foreach (var profile in _shells.Profiles.Where(p => p.SettingsId == p.Id))
+            ShellRows.Add(new ShellRowViewModel(profile, _settings));
+    }
+
+    [RelayCommand]
+    private async Task DetectWslShellsAsync()
+    {
+        if (DetectWsl is null)
+            return;
+        IsDetectingWsl = true;
+        try
+        {
+            await DetectWsl();
+        }
+        finally
+        {
+            IsDetectingWsl = false;
+        }
+        FillShellRows();
+        _notifier.Show("Shells do WSL atualizados", string.Join(" · ", _settings.Current.WslDistros.Select(d => $"{d.Key}: {string.Join(", ", d.Value.Shells)}")));
+    }
 
     [RelayCommand]
     private void SetDefaultShell(ShellRowViewModel row)

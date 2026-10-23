@@ -54,6 +54,9 @@ public sealed class AppSettings
 
     public List<ShellProfile> CustomProfiles { get; set; } = [];
 
+    /// <summary>Shells e home de cada distro WSL, detectados ao abrir uma aba nela ou em Configurações › Shells.</summary>
+    public Dictionary<string, WslDistroInfo> WslDistros { get; set; } = new();
+
     /// <summary>Perfis em que a integração de shell foi desligada (ex.: conflita com o perfil do usuário).</summary>
     public List<string> IntegrationDisabled { get; set; } = [];
 

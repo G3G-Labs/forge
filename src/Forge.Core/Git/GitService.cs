@@ -74,10 +74,10 @@ public sealed class GitService(IProcessRunner runner, TimeProvider? time = null)
         }
     }
 
-    // Em abas WSL o git roda dentro da distro; nas outras, o git.exe do Windows.
+    // Em abas do ambiente WSL (shell do Linux ou terminal do Windows na distro), o git roda dentro da distro.
     private Task<ProcessResult> RunGitAsync(string folder, ShellProfile shell, IReadOnlyList<string> args, CancellationToken ct) =>
-        shell.IsWsl
-            ? runner.RunAsync(shell.Executable, ["-d", shell.Distro!, "--cd", PathMapper.ToWsl(folder), "--", "git", .. args], ct: ct)
+        shell.InWsl
+            ? runner.RunAsync(shell.WslExecutable ?? shell.Executable, ["-d", shell.Distro!, "--cd", PathMapper.ToWsl(folder), "--", "git", .. args], ct: ct)
             : runner.RunAsync("git", ["-C", ExternalApps.WindowsPath(folder, shell), .. args], ct: ct);
 
     private static string? FirstLine(string text) =>

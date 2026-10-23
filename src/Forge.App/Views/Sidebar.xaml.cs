@@ -85,28 +85,44 @@ public partial class Sidebar : UserControl
         }
     }
 
-    // "+" do grupo: escolher o tipo da aba nova. Windows primeiro, depois cada distro WSL e os perfis próprios.
+    // "+" do grupo: escolher o ambiente e o terminal da aba nova. Os terminais do Windows ficam à vista; cada distro WSL
+    // é um submenu com os shells do Linux e, abaixo, os terminais do Windows abertos na pasta da distro.
     private void OnNewTabClick(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: GroupViewModel group } anchor || Main is not { } main)
             return;
         var menu = new ContextMenu { PlacementTarget = anchor, Placement = PlacementMode.Bottom };
         menu.Items.Add(new MenuItem { Header = $"Nova aba em {group.Name}", IsEnabled = false });
-        AddShells(menu, group, main.Shells.Where(s => s.Kind is not (ShellKind.Wsl or ShellKind.Custom)), "WINDOWS");
-        AddShells(menu, group, main.Shells.Where(s => s.Kind == ShellKind.Wsl), "WSL");
-        AddShells(menu, group, main.Shells.Where(s => s.Kind == ShellKind.Custom), "PERFIS");
+        AddShells(menu.Items, group, main.Shells.Where(s => !s.InWsl && s.Kind != ShellKind.Custom), "WINDOWS");
+
+        var distros = main.Shells.Where(s => s.InWsl).GroupBy(s => s.Distro!).ToList();
+        if (distros.Count > 0)
+        {
+            menu.Items.Add(new Separator());
+            menu.Items.Add(new MenuItem { Header = "WSL", IsEnabled = false, FontSize = 11 });
+            foreach (var distro in distros)
+            {
+                var sub = new MenuItem { Header = distro.Key };
+                foreach (var shell in distro.Where(s => s.IsWsl))
+                    sub.Items.Add(new MenuItem { Header = shell.Terminal, Command = group.NewTabCommand, CommandParameter = shell });
+                AddShells(sub.Items, group, distro.Where(s => !s.IsWsl), "TERMINAIS DO WINDOWS NA PASTA DA DISTRO");
+                menu.Items.Add(sub);
+            }
+        }
+
+        AddShells(menu.Items, group, main.Shells.Where(s => s.Kind == ShellKind.Custom), "PERFIS");
         menu.IsOpen = true;
     }
 
-    private static void AddShells(ContextMenu menu, GroupViewModel group, IEnumerable<ShellProfile> shells, string title)
+    private static void AddShells(ItemCollection items, GroupViewModel group, IEnumerable<ShellProfile> shells, string title)
     {
         var list = shells.ToList();
         if (list.Count == 0)
             return;
-        menu.Items.Add(new Separator());
-        menu.Items.Add(new MenuItem { Header = title, IsEnabled = false, FontSize = 11 });
+        items.Add(new Separator());
+        items.Add(new MenuItem { Header = title, IsEnabled = false, FontSize = 11 });
         foreach (var shell in list)
-            menu.Items.Add(new MenuItem { Header = shell.Name, Command = group.NewTabCommand, CommandParameter = shell });
+            items.Add(new MenuItem { Header = shell.Distro is null ? shell.Name : shell.Terminal.Replace(" (Windows)", "", StringComparison.Ordinal), Command = group.NewTabCommand, CommandParameter = shell });
     }
 
     // Arrastar e soltar: reordena abas e move entre grupos. O processo da aba continua rodando.

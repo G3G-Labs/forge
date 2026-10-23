@@ -124,7 +124,7 @@ public partial class App : Application
 
     private void ShowSettings(SettingsStore settings, ShellCatalog shells, HistoryStore history, Notifier notifier, AppPaths paths)
     {
-        var vm = new SettingsViewModel(settings, shells, history, notifier, paths);
+        var vm = new SettingsViewModel(settings, shells, history, notifier, paths) { DetectWsl = _vm is null ? null : _vm.DescribeAllDistrosAsync };
         vm.RestartShellsRequested += (_, _) => _vm?.RestartAllShells();
         var window = new SettingsWindow(vm) { Owner = MainWindow };
         window.ShowDialog();

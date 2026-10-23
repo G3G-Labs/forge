@@ -22,7 +22,7 @@ public sealed partial class LaunchBuilder(string scriptsFolder)
         var integration = settings.Helpers.ShellIntegration
             && shell.Kind != ShellKind.Custom
             && shell.SupportsIntegration
-            && !settings.IntegrationDisabled.Contains(shell.Id);
+            && !settings.IntegrationDisabled.Contains(shell.SettingsId);
 
         var mask = settings.Identity.MaskPrompt ? SanitizeMask(settings.Identity.Display(fallbackUser, fallbackMachine)) : null;
 
@@ -36,12 +36,17 @@ public sealed partial class LaunchBuilder(string scriptsFolder)
             settings.Helpers.FlushHistoryEachCommand,
             mask);
 
+        // Terminal do Windows numa distro: a pasta é a da distro, vista pelo Windows (\\wsl.localhost\Debian\…).
+        if (shell.InWsl && !shell.IsWsl && shell.Kind != ShellKind.Custom)
+            cwd = WindowsFolderInDistro(cwd, shell);
+
         return (shell.Kind, shell.Flavor) switch
         {
             (ShellKind.Custom, _) => Raw(shell),
             (_, ShellFlavor.PowerShell) => PowerShell(tab, shell, Options(cwd, "~")),
             (ShellKind.Wsl, ShellFlavor.Zsh) => WslZsh(tab, shell, Options(cwd is null ? null : PathMapper.ToWsl(cwd), "~")),
-            (ShellKind.Wsl, _) => WslBash(tab, shell, Options(cwd is null ? null : PathMapper.ToWsl(cwd), "~")),
+            (ShellKind.Wsl, ShellFlavor.Bash) => WslBash(tab, shell, Options(cwd is null ? null : PathMapper.ToWsl(cwd), "~") with { LoginProfile = true }),
+            (ShellKind.Wsl, _) => WslOther(shell, cwd),
             (ShellKind.GitBash, _) => GitBash(tab, shell, Options(cwd is null ? null : PathMapper.ToMsys(cwd), "~")),
             (ShellKind.Cmd, _) => Cmd(tab, shell, Options(cwd, "%USERPROFILE%")),
             _ => Raw(shell),
@@ -54,6 +59,24 @@ public sealed partial class LaunchBuilder(string scriptsFolder)
         if (mode == FolderOnRestore.LastVisited && !string.IsNullOrWhiteSpace(tab.LastCwd))
             return tab.LastCwd;
         return string.IsNullOrWhiteSpace(tab.Cwd) ? null : tab.Cwd;
+    }
+
+    /// <summary>
+    /// Pasta de um terminal do Windows aberto numa distro: /home/dev/api e ~/api viram \\wsl.localhost\Debian\home\dev\api;
+    /// sem pasta, a home da distro (ou a raiz, se a home ainda não foi detectada). Pastas do Windows ficam como estão.
+    /// </summary>
+    internal static string? WindowsFolderInDistro(string? cwd, ShellProfile shell)
+    {
+        var linux = cwd is null || PathMapper.IsLinuxPath(cwd) ? ExpandHome(cwd ?? "~", shell.WslHome) : null;
+        return linux is null ? cwd : PathMapper.ToWindows(linux, shell.Distro!);
+    }
+
+    // "~" e "~/api" com a home da distro; sem ela, a raiz.
+    private static string ExpandHome(string path, string? home)
+    {
+        if (path != "~" && !path.StartsWith("~/", StringComparison.Ordinal))
+            return path;
+        return home is null ? "/" : home.TrimEnd('/') + path[1..];
     }
 
     /// <summary>A máscara vai crua para dentro do prompt de três shells: só letras, dígitos e @ . _ -.</summary>
@@ -81,18 +104,20 @@ public sealed partial class LaunchBuilder(string scriptsFolder)
     private LaunchPlan WslBash(WorkspaceTab tab, ShellProfile shell, ScriptOptions o)
     {
         var script = ScriptPath(tab, "bash");
-        var args = new[] { "-d", shell.Distro!, "--cd", "~", "--", "bash", "--rcfile", PathMapper.ToWsl(script), "-i" };
+        var args = new[] { "-d", shell.Distro!, "--cd", "~", "--", shell.LinuxShell, "--rcfile", PathMapper.ToWsl(script), "-i" };
         return new LaunchPlan(CommandLine.Join(shell.Executable, args), [new ScriptFile(script, ShellScripts.Bash(o))], o.Integration);
     }
 
     private LaunchPlan WslZsh(WorkspaceTab tab, ShellProfile shell, ScriptOptions o)
     {
         var folder = scriptsFolder.TrimEnd('\\') + @"\zsh-" + tab.Id;
-        var args = new[] { "-d", shell.Distro!, "--cd", "~", "--", "env", "ZDOTDIR=" + PathMapper.ToWsl(folder), "zsh", "-i" };
+        // -l: shell de login, como o Windows Terminal abre a distro (carrega o .zprofile).
+        var args = new[] { "-d", shell.Distro!, "--cd", "~", "--", "env", "ZDOTDIR=" + PathMapper.ToWsl(folder), shell.LinuxShell, "-l", "-i" };
         return new LaunchPlan(
             CommandLine.Join(shell.Executable, args),
             [
                 new ScriptFile(folder + @"\.zshenv", ShellScripts.ZshEnv(tab.Id)),
+                new ScriptFile(folder + @"\.zprofile", ShellScripts.ZProfile(tab.Id)),
                 new ScriptFile(folder + @"\.zshrc", ShellScripts.Zsh(o)),
             ],
             o.Integration);
@@ -109,6 +134,19 @@ public sealed partial class LaunchBuilder(string scriptsFolder)
     {
         var script = ScriptPath(tab, "cmd");
         return new LaunchPlan(CommandLine.Join(shell.Executable, ["/k", script]), [new ScriptFile(script, ShellScripts.Cmd(o))], Integration: false);
+    }
+
+    /// <summary>
+    /// Outros shells do Linux (fish, nu…): abrem como shell de login, direto na pasta da aba, sem script nem integração.
+    /// </summary>
+    private static LaunchPlan WslOther(ShellProfile shell, string? cwd)
+    {
+        var folder = ExpandHome(cwd is null ? "~" : PathMapper.ToWsl(cwd), shell.WslHome);
+        // Sem a home detectada, "~/api" vira "/"; melhor abrir na home de verdade.
+        if (cwd is not null && folder == "/" && PathMapper.ToWsl(cwd) != "/")
+            folder = "~";
+        var args = new[] { "-d", shell.Distro!, "--cd", folder, "--", shell.LinuxShell, "-l" };
+        return new LaunchPlan(CommandLine.Join(shell.Executable, args), [], Integration: false);
     }
 
     /// <summary>Perfil personalizado: o executável e os argumentos do usuário, sem script nem integração.</summary>

@@ -10,7 +10,8 @@ public sealed record ScriptOptions(
     bool Integration,
     bool CaseInsensitiveCompletion,
     bool FlushHistory,
-    string? PromptMask)
+    string? PromptMask,
+    bool LoginProfile = false)
 {
     /// <summary>A máscara substitui o prompt do shell por "máscara:pasta".</summary>
     public bool HasMask => PromptMask is not null;
@@ -60,12 +61,24 @@ public static class ShellScripts
         return sb.ToString();
     }
 
-    /// <summary>Script para <c>bash --rcfile</c> (Git Bash e distros WSL).</summary>
+    /// <summary>
+    /// Script para <c>bash --rcfile</c> (Git Bash e distros WSL). Com <see cref="ScriptOptions.LoginProfile"/> (WSL),
+    /// carrega o que um shell de login carregaria, como o Windows Terminal faz: /etc/profile e ~/.bash_profile ou
+    /// ~/.profile, que no Debian e no Ubuntu põe ~/.local/bin no PATH (onde ficam claude, pipx…) e chama o ~/.bashrc.
+    /// </summary>
     public static string Bash(ScriptOptions o)
     {
         var sb = new StringBuilder();
         Line(sb, "# " + string.Format(Header, o.TabId));
-        Line(sb, "[ -f ~/.bashrc ] && . ~/.bashrc");
+        if (o.LoginProfile)
+        {
+            Line(sb, "[ -f /etc/profile ] && . /etc/profile");
+            Line(sb, "if [ -f ~/.bash_profile ]; then . ~/.bash_profile; elif [ -f ~/.bash_login ]; then . ~/.bash_login; elif [ -f ~/.profile ]; then . ~/.profile; fi");
+        }
+        else
+        {
+            Line(sb, "[ -f ~/.bashrc ] && . ~/.bashrc");
+        }
         if (o.Cwd is { } cwd)
             Line(sb, $"cd -- {ShCdTarget(cwd)} 2>/dev/null");
         foreach (var (name, value) in o.Env)
@@ -87,6 +100,10 @@ public static class ShellScripts
     /// <summary>.zshenv da pasta ZDOTDIR temporária: só repassa para o original.</summary>
     public static string ZshEnv(string tabId) =>
         $"# {string.Format(Header, tabId)}\n[ -f \"$HOME/.zshenv\" ] && . \"$HOME/.zshenv\"\n";
+
+    /// <summary>.zprofile da pasta ZDOTDIR temporária (o zsh do WSL abre como shell de login): repassa para o original.</summary>
+    public static string ZProfile(string tabId) =>
+        $"# {string.Format(Header, tabId)}\n[ -f \"$HOME/.zprofile\" ] && . \"$HOME/.zprofile\"\n";
 
     /// <summary>.zshrc da pasta ZDOTDIR temporária: carrega o original e acrescenta o do Forge.</summary>
     public static string Zsh(ScriptOptions o)
@@ -118,8 +135,9 @@ public static class ShellScripts
         // O CMD relê o .cmd linha a linha: depois do chcp, pastas com acento (gravadas em UTF-8) saem certas.
         Line(sb, "chcp 65001 >nul", "\r\n");
         Line(sb, "rem " + string.Format(Header, o.TabId), "\r\n");
+        // O CMD não entra em pasta de rede (\\wsl.localhost\…) com cd: o pushd mapeia uma letra de unidade para ela.
         if (o.Cwd is { } cwd)
-            Line(sb, $"cd /d \"{cwd}\"", "\r\n");
+            Line(sb, cwd.StartsWith(@"\\", StringComparison.Ordinal) ? $"pushd \"{cwd}\"" : $"cd /d \"{cwd}\"", "\r\n");
         foreach (var (name, value) in o.Env)
             Line(sb, $"set \"{name}={value.Replace("%", "%%", StringComparison.Ordinal).Replace("\"", "", StringComparison.Ordinal)}\"", "\r\n");
         Line(sb, "@echo on", "\r\n");

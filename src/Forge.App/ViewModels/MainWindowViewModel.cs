@@ -15,12 +15,14 @@ namespace Forge.App.ViewModels;
 public sealed partial class MainWindowViewModel : ObservableObject
 {
     private readonly WorkspaceContext _ctx;
+    private readonly HashSet<string> _describedDistros = [];
 
     public MainWindowViewModel(WorkspaceContext ctx)
     {
         _ctx = ctx;
         History = new HistorySearchViewModel(ctx.History, this);
         Groups.CollectionChanged += (_, _) => OnPropertyChanged(nameof(IsEmpty));
+        ctx.Shells.Changed += (_, _) => OnShellsChanged();
     }
 
     public WorkspaceContext Context => _ctx;
@@ -58,10 +60,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// <summary>Detecta os shells, monta a árvore e restaura as abas. Chamado uma vez, com a janela já visível.</summary>
     public async Task InitializeAsync()
     {
-        var detected = await _ctx.Shells.DetectAsync(_ctx.Settings.Current.CustomProfiles);
-        Shells.Clear();
-        foreach (var shell in detected)
-            Shells.Add(shell);
+        await _ctx.Shells.DetectAsync(_ctx.Settings.Current.CustomProfiles, _ctx.Settings.Current.WslDistros);
+        OnShellsChanged();
 
         SidebarCollapsed = _ctx.Store.Current.Window.SidebarCollapsed;
         Groups.Clear();
@@ -317,6 +317,44 @@ public sealed partial class MainWindowViewModel : ObservableObject
 
     [RelayCommand]
     private void OpenSettings() => SettingsRequested?.Invoke(this, EventArgs.Empty);
+
+    /// <summary>
+    /// Lê, dentro da distro, os shells instalados e a home do usuário (uma vez por execução do app, ou sempre com
+    /// <paramref name="force"/>) e atualiza os terminais oferecidos. Liga a distro se ela estiver parada.
+    /// </summary>
+    public async Task DescribeDistroAsync(string distro, bool force = false)
+    {
+        if (!_describedDistros.Add(distro) && !force)
+            return;
+        var info = await _ctx.Shells.DescribeAsync(distro);
+        if (info is null)
+        {
+            _ctx.Audit.Warning("wsl", $"Não foi possível ler os shells da distro {distro}");
+            return;
+        }
+        var known = _ctx.Settings.Current.WslDistros.GetValueOrDefault(distro);
+        if (known is not null && known.Home == info.Home && known.DefaultShell == info.DefaultShell && known.Shells.SequenceEqual(info.Shells))
+            return;
+        _ctx.Audit.Info("wsl", $"Shells da distro {distro}: {string.Join(", ", info.Shells)}", $"padrão: {info.DefaultShell}\nhome: {info.Home}");
+        _ctx.Settings.Update(s => s.WslDistros[distro] = info);
+        _ctx.Shells.Update(_ctx.Settings.Current.WslDistros);
+    }
+
+    /// <summary>Detecta de novo os shells de todas as distros (Configurações › Shells e perfis).</summary>
+    public async Task DescribeAllDistrosAsync()
+    {
+        foreach (var distro in _ctx.Shells.Distros)
+            await DescribeDistroAsync(distro, force: true);
+    }
+
+    private void OnShellsChanged()
+    {
+        Shells.Clear();
+        foreach (var shell in _ctx.Shells.Profiles)
+            Shells.Add(shell);
+        foreach (var tab in AllTabs())
+            tab.ModelChanged();
+    }
 
     /// <summary>Reabre o shell de todas as abas abertas (vale máscara, auxílios e tema de prompt novos).</summary>
     public void RestartAllShells()

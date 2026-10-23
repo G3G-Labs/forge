@@ -1,4 +1,5 @@
 using System.Text;
+using Forge.Core.Models;
 using Forge.Core.Processes;
 using Forge.Core.Shells;
 using Microsoft.Win32;
@@ -53,6 +54,23 @@ public sealed class WindowsShellProbe(IProcessRunner runner) : IShellProbe
         catch (System.ComponentModel.Win32Exception)
         {
             return [];
+        }
+    }
+
+    public async Task<WslDistroInfo?> DescribeWslAsync(string wslExecutable, string distro, CancellationToken ct)
+    {
+        // Ligar uma distro parada leva alguns segundos; travada, ela não segura a detecção para sempre.
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        try
+        {
+            // -e: roda o sh direto, sem passar pelo shell de login (que pode imprimir coisas ou demorar).
+            var result = await runner.RunAsync(wslExecutable, ["-d", distro, "-e", "sh", "-c", WslShellsParser.Script], ct: timeout.Token).ConfigureAwait(false);
+            return result.ExitCode == 0 ? WslShellsParser.Parse(result.Output) : null;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or OperationCanceledException)
+        {
+            return null;
         }
     }
 }

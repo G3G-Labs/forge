@@ -9,6 +9,7 @@ public class LaunchBuilderTests
 
     private static readonly ShellProfile Pwsh = new() { Id = "pwsh", Name = "PowerShell 7", Kind = ShellKind.PowerShell, Flavor = ShellFlavor.PowerShell, Executable = @"C:\Program Files\PowerShell\7\pwsh.exe" };
     private static readonly ShellProfile Ubuntu = new() { Id = "wsl:Ubuntu", Name = "Ubuntu", Kind = ShellKind.Wsl, Flavor = ShellFlavor.Bash, Executable = @"C:\Windows\System32\wsl.exe", Distro = "Ubuntu" };
+    private static readonly ShellProfile PwshInUbuntu = Pwsh with { Id = "wsl:Ubuntu:pwsh", Name = "Ubuntu · PowerShell 7", SettingsId = "pwsh", Distro = "Ubuntu", WslExecutable = @"C:\Windows\System32\wsl.exe", WslHome = "/home/dev" };
     private static readonly ShellProfile Cmd = new() { Id = "cmd", Name = "Prompt de Comando", Kind = ShellKind.Cmd, Flavor = ShellFlavor.Cmd, Executable = @"C:\Windows\System32\cmd.exe" };
 
     private static LaunchPlan Build(WorkspaceTab tab, ShellProfile shell, AppSettings? settings = null) =>
@@ -44,7 +45,10 @@ public class LaunchBuilderTests
             @"C:\Windows\System32\wsl.exe -d Ubuntu --cd ~ -- bash --rcfile /mnt/c/Users/dev/AppData/Roaming/Forge/shell/tab-t2.bash -i",
             plan.CommandLine);
         var content = Assert.Single(plan.Scripts).Content;
-        Assert.Contains("[ -f ~/.bashrc ] && . ~/.bashrc", content);
+        // Shell de login, como o Windows Terminal: o ~/.profile põe ~/.local/bin no PATH e chama o ~/.bashrc.
+        Assert.Contains("[ -f /etc/profile ] && . /etc/profile", content);
+        Assert.Contains("elif [ -f ~/.profile ]; then . ~/.profile; fi", content);
+        Assert.DoesNotContain("[ -f ~/.bashrc ] && . ~/.bashrc", content);
         Assert.Contains("cd -- '/mnt/c/dev/api'", content);
         Assert.Contains("export PORT='3001'", content);
         Assert.DoesNotContain("INVALIDO", content);
@@ -117,6 +121,81 @@ public class LaunchBuilderTests
         // Caracteres que o shell interpretaria saem da máscara.
         Assert.Contains("PS1='\\[\\e[32m\\]gabriel@forge-rm\\[\\e[0m\\]:\\[\\e[34m\\]\\w\\[\\e[0m\\]\\$ '", bash);
         Assert.Contains("$global:__forgeMask = 'gabriel@forge-rm'", pwsh);
+    }
+
+    [Fact]
+    public void Git_Bash_continua_carregando_so_o_bashrc()
+    {
+        var gitBash = new ShellProfile { Id = "gitbash", Name = "Git Bash", Kind = ShellKind.GitBash, Flavor = ShellFlavor.Bash, Executable = @"C:\Program Files\Git\bin\bash.exe" };
+
+        var content = Assert.Single(Build(new WorkspaceTab { Id = "g1" }, gitBash).Scripts).Content;
+
+        Assert.Contains("[ -f ~/.bashrc ] && . ~/.bashrc", content);
+        Assert.DoesNotContain("/etc/profile", content);
+    }
+
+    [Fact]
+    public void Zsh_do_WSL_abre_como_shell_de_login_e_repassa_o_zprofile()
+    {
+        var zsh = Ubuntu with { Id = "wsl:Ubuntu:zsh", Flavor = ShellFlavor.Zsh, LinuxShell = "zsh" };
+
+        var plan = Build(new WorkspaceTab { Id = "z1" }, zsh);
+
+        Assert.EndsWith("zsh -l -i", plan.CommandLine);
+        Assert.Contains(plan.Scripts, s => s.WindowsPath.EndsWith(@"\.zprofile", StringComparison.Ordinal) && s.Content.Contains(". \"$HOME/.zprofile\""));
+    }
+
+    [Fact]
+    public void Fish_abre_direto_na_pasta_sem_script()
+    {
+        var fish = Ubuntu with { Id = "wsl:Ubuntu:fish", Flavor = ShellFlavor.Unknown, LinuxShell = "fish", WslHome = "/home/dev" };
+
+        var plan = Build(new WorkspaceTab { Id = "f1", Cwd = "~/api" }, fish);
+
+        Assert.Equal(@"C:\Windows\System32\wsl.exe -d Ubuntu --cd /home/dev/api -- fish -l", plan.CommandLine);
+        Assert.Empty(plan.Scripts);
+        Assert.False(plan.Integration);
+    }
+
+    [Theory]
+    [InlineData(null, @"\\wsl.localhost\Ubuntu\home\dev")]
+    [InlineData("~/api", @"\\wsl.localhost\Ubuntu\home\dev\api")]
+    [InlineData("/srv/app", @"\\wsl.localhost\Ubuntu\srv\app")]
+    [InlineData(@"\\wsl.localhost\Ubuntu\home\dev\web", @"\\wsl.localhost\Ubuntu\home\dev\web")]
+    [InlineData(@"C:\dev\web", @"C:\dev\web")]
+    public void Terminal_do_Windows_na_distro_abre_na_pasta_dela(string? cwd, string expected)
+    {
+        var content = Assert.Single(Build(new WorkspaceTab { Id = "w1", Cwd = cwd }, PwshInUbuntu).Scripts).Content;
+
+        Assert.Contains($"Set-Location -LiteralPath '{expected}'", content);
+    }
+
+    [Fact]
+    public void Sem_a_home_detectada_o_terminal_do_Windows_abre_na_raiz_da_distro()
+    {
+        var content = Assert.Single(Build(new WorkspaceTab { Id = "w2" }, PwshInUbuntu with { WslHome = null }).Scripts).Content;
+
+        Assert.Contains(@"Set-Location -LiteralPath '\\wsl.localhost\Ubuntu\'", content);
+    }
+
+    [Fact]
+    public void CMD_e_Git_Bash_na_distro_entram_na_pasta_de_rede()
+    {
+        var cmd = Cmd with { Id = "wsl:Ubuntu:cmd", SettingsId = "cmd", Distro = "Ubuntu", WslHome = "/home/dev" };
+        var gitBash = new ShellProfile { Id = "wsl:Ubuntu:gitbash", Name = "Ubuntu · Git Bash", Kind = ShellKind.GitBash, Flavor = ShellFlavor.Bash, Executable = @"C:\Program Files\Git\bin\bash.exe", SettingsId = "gitbash", Distro = "Ubuntu", WslHome = "/home/dev" };
+
+        Assert.Contains(@"pushd ""\\wsl.localhost\Ubuntu\home\dev""", Assert.Single(Build(new WorkspaceTab { Id = "c1" }, cmd).Scripts).Content);
+        var bash = Assert.Single(Build(new WorkspaceTab { Id = "b1" }, gitBash).Scripts).Content;
+        Assert.Contains("cd -- '//wsl.localhost/Ubuntu/home/dev'", bash);
+        Assert.Contains("[ -f ~/.bashrc ] && . ~/.bashrc", bash);
+    }
+
+    [Fact]
+    public void Integracao_desligada_no_PowerShell_vale_tambem_dentro_da_distro()
+    {
+        var plan = Build(new WorkspaceTab { Id = "w3" }, PwshInUbuntu, new AppSettings { IntegrationDisabled = ["pwsh"] });
+
+        Assert.False(plan.Integration);
     }
 
     [Theory]

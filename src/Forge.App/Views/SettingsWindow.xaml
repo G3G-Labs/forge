@@ -96,7 +96,13 @@
                 <StackPanel Visibility="{Binding Section, Converter={StaticResource EqualsToVisibility}, ConverterParameter='Shells e perfis'}">
                     <TextBlock Text="SHELLS DETECTADOS E PERFIS" Style="{StaticResource Forge.SectionLabel}" />
                     <TextBlock Style="{StaticResource Forge.Hint}" Margin="0,0,0,10"
-                               Text="Encontrados no registro, no PATH e nas distros WSL instaladas. A integração de shell alimenta o estado da aba e o Ctrl+R." />
+                               Text="Encontrados no registro, no PATH e nas distros WSL instaladas. Em cada distro, além dos shells do Linux, a aba pode abrir PowerShell, CMD e Git Bash na pasta da distro. A integração de shell alimenta o estado da aba e o Ctrl+R." />
+                    <DockPanel Margin="0,0,0,10" Visibility="{Binding HasWsl, Converter={StaticResource BoolToVisibility}}">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource Forge.SecondaryButton}" Height="30" Content="Detectar shells do WSL"
+                                Command="{Binding DetectWslShellsCommand}" />
+                        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0"
+                                   Text="Lê bash, zsh, fish… e a home de cada distro. Liga as distros que estiverem paradas." />
+                    </DockPanel>
                     <ItemsControl ItemsSource="{Binding ShellRows}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="{x:Type vm:ShellRowViewModel}">
