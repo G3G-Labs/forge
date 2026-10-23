@@ -9,5 +9,7 @@ public sealed record ScriptFile(string WindowsPath, string Content, bool Utf8Bom
 /// <summary>
 /// Como abrir uma aba: a linha de comando entregue ao ConPTY e os scripts que ela usa.
 /// <paramref name="Integration"/> diz se o shell vai emitir OSC 133 (estado da aba e histórico unificado).
+/// <paramref name="Nonce"/> é o segredo desta sessão que os scripts põem no texto do comando e na pasta (OSC 633): um
+/// programa que só imprime texto (cat, curl, git log) não o conhece e não consegue forjar essas sequências.
 /// </summary>
-public sealed record LaunchPlan(string CommandLine, IReadOnlyList<ScriptFile> Scripts, bool Integration);
+public sealed record LaunchPlan(string CommandLine, IReadOnlyList<ScriptFile> Scripts, bool Integration, string Nonce);

@@ -27,6 +27,9 @@ public sealed class WorkspaceStore : IDisposable
 
     public string? LoadProblem => _file.Problem;
 
+    /// <summary>O workspaces.json estava bloqueado na abertura: nada é gravado nesta sessão (ver <see cref="JsonFile{T}.SavesBlocked"/>).</summary>
+    public bool SavesBlocked => _file.SavesBlocked;
+
     /// <summary>Uma gravação falhou (disco cheio, sem permissão). Disparado fora da thread da interface.</summary>
     public event EventHandler<Exception>? SaveFailed;
 

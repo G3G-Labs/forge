@@ -69,7 +69,8 @@ public sealed partial class MainWindowViewModel : ObservableObject
             Groups.Add(new GroupViewModel(group, this, _ctx));
 
         // Nenhuma configuração obrigatória antes do primeiro uso: na primeira vez já existe um grupo com uma aba.
-        if (Groups.Count == 0 && !IsAdmin)
+        // Com o workspaces.json bloqueado, a árvore vazia não é a primeira vez: fica vazia, com o aviso.
+        if (Groups.Count == 0 && !IsAdmin && !_ctx.Store.SavesBlocked)
             CreateFirstWorkspace();
 
         await RestoreAsync();

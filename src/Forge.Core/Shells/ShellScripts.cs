@@ -11,6 +11,7 @@ public sealed record ScriptOptions(
     bool CaseInsensitiveCompletion,
     bool FlushHistory,
     string? PromptMask,
+    string Nonce,
     bool LoginProfile = false)
 {
     /// <summary>A máscara substitui o prompt do shell por "máscara:pasta".</summary>
@@ -55,7 +56,7 @@ public static class ShellScripts
         Line(sb, "    \"$e[32m$($global:__forgeMask)$e[0m $e[34m$($executionContext.SessionState.Path.CurrentLocation)$e[0m> \"", "\r\n");
         Line(sb, "}", "\r\n");
         if (o.Integration)
-            sb.Append(PowerShellIntegration.ReplaceLineEndings("\r\n"));
+            sb.Append(PowerShellIntegration.Replace("__FORGE_NONCE__", PsQuote(o.Nonce), StringComparison.Ordinal).ReplaceLineEndings("\r\n"));
         else if (o.HasMask)
             Line(sb, "function global:prompt { __forgePromptText }", "\r\n");
         return sb.ToString();
@@ -91,7 +92,10 @@ public static class ShellScripts
             Line(sb, "PS1='\\[\\e[32m\\]" + o.PromptMask + "\\[\\e[0m\\]:\\[\\e[34m\\]\\w\\[\\e[0m\\]\\$ '");
 
         if (o.Integration)
-            sb.Append(BashIntegration.Replace("__FORGE_FLUSH__", o.FlushHistory ? "builtin history -a" : ":", StringComparison.Ordinal).ReplaceLineEndings("\n"));
+            sb.Append(BashIntegration
+                .Replace("__FORGE_FLUSH__", o.FlushHistory ? "builtin history -a" : ":", StringComparison.Ordinal)
+                .Replace("__FORGE_NONCE__", ShQuote(o.Nonce), StringComparison.Ordinal)
+                .ReplaceLineEndings("\n"));
         else if (o.FlushHistory)
             Line(sb, "PROMPT_COMMAND=\"history -a${PROMPT_COMMAND:+;$PROMPT_COMMAND}\"");
         return sb.ToString();
@@ -123,7 +127,7 @@ public static class ShellScripts
         if (o.HasMask)
             Line(sb, "PROMPT='%F{green}" + o.PromptMask + "%f:%F{blue}%~%f%# '");
         if (o.Integration)
-            sb.Append(ZshIntegration.ReplaceLineEndings("\n"));
+            sb.Append(ZshIntegration.Replace("__FORGE_NONCE__", ShQuote(o.Nonce), StringComparison.Ordinal).ReplaceLineEndings("\n"));
         return sb.ToString();
     }
 
@@ -156,14 +160,30 @@ public static class ShellScripts
 
     private static void Line(StringBuilder sb, string text, string newline = "\n") => sb.Append(text).Append(newline);
 
-    // OSC 133 (A prompt, C comando começou, D terminou com código), 633;E (texto do comando) e 7 (pasta atual).
-    // O texto do comando escapa "\" e ";" (e quebras de linha) para não quebrar a sequência.
+    // OSC 133 (A prompt, C comando começou, D terminou com código) e 633 (E texto do comando, P;Cwd= pasta atual).
+    // O texto do comando escapa "\" e ";" (e quebras de linha) para não quebrar a sequência. E e P terminam com o nonce
+    // da sessão: um programa que só imprime texto não o conhece, então não forja comando no histórico nem troca a pasta.
+    // Linha que o próprio shell deixa fora do histórico (começa com espaço, HISTCONTROL, filtro de senhas do PSReadLine)
+    // também não vai para o histórico do Forge.
     private const string PowerShellIntegration = """
         $global:__forgeEsc = [string][char]0x1b
         $global:__forgeBel = [string][char]0x07
+        $global:__forgeNonce = __FORGE_NONCE__
         $global:__forgeRan = $false
         function global:__forgeOsc([string]$body) {
             [Console]::Write("$($global:__forgeEsc)]$body$($global:__forgeBel)")
+        }
+        function global:__forgeRecord([string]$line) {
+            if ($line.StartsWith(' ')) { return $false }
+            try {
+                $handler = (Get-PSReadLineOption).AddToHistoryHandler
+                if ($handler) {
+                    $answer = $handler.Invoke($line)
+                    if ($answer -is [bool]) { return $answer }
+                    return "$answer" -eq 'MemoryAndFile'
+                }
+            } catch { }
+            return $true
         }
         function global:prompt {
             $ok = $?
@@ -175,7 +195,10 @@ public static class ShellScripts
             }
             $location = $executionContext.SessionState.Path.CurrentLocation
             if ($location.Provider.Name -eq 'FileSystem') {
-                __forgeOsc ('7;file:///' + ($location.ProviderPath -replace '\\', '/'))
+                # C:\dev vira file:///C:/dev; a pasta de rede \\wsl.localhost\Debian vira file:////wsl.localhost/Debian.
+                $path = $location.ProviderPath -replace '\\', '/'
+                $uri = if ($path.StartsWith('//')) { 'file://' + $path } else { 'file:///' + $path }
+                __forgeOsc "633;P;Cwd=$uri;$($global:__forgeNonce)"
             }
             __forgeOsc '133;A'
             $text = __forgePromptText
@@ -188,8 +211,10 @@ public static class ShellScripts
                 $cursor = $null
                 [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
                 if ($line.Trim().Length -gt 0) {
-                    $escaped = $line.Replace('\', '\\').Replace(';', '\x3b').Replace("`r", '').Replace("`n", '\x0a')
-                    __forgeOsc "633;E;$escaped"
+                    if (__forgeRecord $line) {
+                        $escaped = $line.Replace('\', '\\').Replace(';', '\x3b').Replace("`r", '').Replace("`n", '\x0a')
+                        __forgeOsc "633;E;$escaped;$($global:__forgeNonce)"
+                    }
                     __forgeOsc '133;C'
                     $global:__forgeRan = $true
                 }
@@ -201,25 +226,37 @@ public static class ShellScripts
 
     // PS0 roda num subshell ao aceitar o comando: lê o texto pelo histórico e emite E e C. O D sai sempre no
     // PROMPT_COMMAND; o parser ignora o D que não teve um C antes (o primeiro prompt, Enter vazio).
+    // O precmd guarda o número do último item do histórico: se o PS0 encontra o mesmo número, o bash não guardou a
+    // linha (HISTCONTROL=ignorespace, HISTIGNORE…) e o E não sai.
     private const string BashIntegration = """
+        __forge_nonce=__FORGE_NONCE__
         __forge_osc() { printf '\033]%s\007' "$1"; }
         __forge_escape() {
           local s=${1//\\/\\\\}
           s=${s//;/\\x3b}
           printf '%s' "${s//$'\n'/\\x0a}"
         }
+        __forge_histnum() {
+          local line
+          line=$(HISTTIMEFORMAT= builtin history 1)
+          [[ $line =~ ^[[:space:]]*([0-9]+) ]] && printf '%s' "${BASH_REMATCH[1]}"
+        }
         __forge_precmd() {
           local code=$?
           __FORGE_FLUSH__
+          __forge_lasthist=$(__forge_histnum)
           __forge_osc "133;D;$code"
-          __forge_osc "7;file://${HOSTNAME}${PWD}"
+          __forge_osc "633;P;Cwd=file://${HOSTNAME}${PWD};${__forge_nonce}"
           return $code
         }
         __forge_preexec() {
           local line
           line=$(HISTTIMEFORMAT= builtin history 1)
-          [[ $line =~ ^[[:space:]]*[0-9]+\*?[[:space:]]+(.*)$ ]] && line=${BASH_REMATCH[1]}
-          __forge_osc "633;E;$(__forge_escape "$line")"
+          if [[ $line =~ ^[[:space:]]*([0-9]+)\*?[[:space:]]+(.*)$ ]]; then
+            if [[ ${BASH_REMATCH[1]} != "$__forge_lasthist" ]]; then
+              __forge_osc "633;E;$(__forge_escape "${BASH_REMATCH[2]}");${__forge_nonce}"
+            fi
+          fi
           __forge_osc '133;C'
         }
         PROMPT_COMMAND="__forge_precmd${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
@@ -229,20 +266,24 @@ public static class ShellScripts
         """;
 
     // Temas do zsh redesenham o PROMPT a cada precmd: o A sai no próprio precmd, em vez de dentro do PROMPT.
+    // Comando que começa com espaço fica fora do histórico do Forge, como no HIST_IGNORE_SPACE.
     private const string ZshIntegration = """
         autoload -Uz add-zsh-hook
+        __forge_nonce=__FORGE_NONCE__
         __forge_osc() { printf '\033]%s\007' "$1"; }
         __forge_precmd() {
           local code=$?
           __forge_osc "133;D;$code"
-          __forge_osc "7;file://${HOST}${PWD}"
+          __forge_osc "633;P;Cwd=file://${HOST}${PWD};${__forge_nonce}"
           __forge_osc '133;A'
         }
         __forge_preexec() {
-          local s=${1//\\/\\\\}
-          s=${s//;/\\x3b}
-          s=${s//$'\n'/\\x0a}
-          __forge_osc "633;E;$s"
+          if [[ $1 != ' '* ]]; then
+            local s=${1//\\/\\\\}
+            s=${s//;/\\x3b}
+            s=${s//$'\n'/\\x0a}
+            __forge_osc "633;E;$s;${__forge_nonce}"
+          fi
           __forge_osc '133;C'
         }
         add-zsh-hook precmd __forge_precmd

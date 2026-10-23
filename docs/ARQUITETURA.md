@@ -83,12 +83,14 @@ Forge/
 │   │   │   ├── ShellScripts.cs      scripts PowerShell, bash, zsh e CMD (pasta, variáveis, auxílios, OSC 133)
 │   │   │   └── LaunchPlan.cs        o resultado: comando e arquivos a gravar
 │   │   ├── ShellIntegration/
-│   │   │   ├── OscParser.cs         lê OSC 133/633/7 na saída, mesmo partida entre pedaços
+│   │   │   ├── OscParser.cs         lê OSC 133/633 na saída (assinadas com o nonce da sessão), mesmo partidas
+│   │   │   ├── PasteText.cs         comando do Ctrl+R em uma linha, sem Enter nem controles
 │   │   │   └── ShellEvent.cs        PromptStarted, CommandLineReceived, CommandStarted, CommandFinished, CwdChanged
 │   │   ├── Git/
 │   │   │   ├── GitService.cs        git status em lote; em abas WSL, dentro da distro; cache curto
 │   │   │   └── GitStatusParser.cs   git status --porcelain=v2 --branch
-│   │   ├── Actions/ExternalApps.cs  VS Code (inclusive remoto no WSL), Explorer, caminho do Windows
+│   │   ├── Actions/ExternalApps.cs  VS Code pelo Code.exe (inclusive remoto no WSL), Explorer, caminho do Windows
+│   │   ├── Diagnostics/         AuditLog (log de auditoria) e SecretMask (senhas e tokens fora do log)
 │   │   ├── Appearance/WindowsTerminalImport.cs  importa esquemas do settings.json do Windows Terminal
 │   │   ├── Processes/ProcessRunner.cs  processos de apoio (git, wsl -l, code)
 │   │   └── Util/                    Debouncer, CommandLine (aspas do Windows), Ids, Palette
@@ -206,8 +208,12 @@ e só então acrescenta o do Forge. Nada é escrito nos arquivos do usuário.
 | zsh (WSL) | `env ZDOTDIR=<pasta da aba> zsh -i` | `.zshenv` e `.zshrc` originais, `matcher-list` sem maiúsculas, `INC_APPEND_HISTORY`, hooks precmd/preexec |
 | CMD | `cmd /k tab-<id>.cmd` | `chcp 65001`, pasta, variáveis. Sem integração: a aba sabe que o comando foi enviado, não quando terminou |
 
-Sequências usadas: `OSC 133;A` (prompt), `133;C` (comando começou), `133;D;<código>` (terminou), `633;E;<texto>`
-(texto do comando, com `\` e `;` escapados) e `OSC 7` (pasta atual). O `OscParser` lê sem alterar a saída.
+Sequências usadas: `OSC 133;A` (prompt), `133;C` (comando começou), `133;D;<código>` (terminou), `633;E;<texto>;<nonce>`
+(texto do comando, com `\` e `;` escapados) e `633;P;Cwd=<file://…>;<nonce>` (pasta atual). O `OscParser` lê sem alterar a
+saída. O nonce é novo a cada sessão (`LaunchPlan.Nonce`): sem ele, o texto do comando e a pasta são ignorados, então a
+saída de um programa (`cat`, `curl`, `git log`) não põe comando no histórico nem aponta a aba para uma pasta de rede. A
+linha que o shell deixa fora do próprio histórico (começa com espaço, `HISTCONTROL`, filtro de senhas do PSReadLine)
+também fica fora do histórico do Forge, e o log de auditoria passa os comandos pelo `SecretMask`.
 
 Diferença do escopo: o autocomplete sem maiúsculas no bash usa `bind` dentro do `--rcfile` em vez de `INPUTRC` +
 `WSLENV`; o efeito é o mesmo e não depende de repassar variáveis ao WSL. As variáveis da aba também vão pelo
@@ -245,7 +251,8 @@ fora de campos de texto. Padrões do escopo; remapeáveis em `settings.json` (`"
 
 - gravação com atraso de 500 ms, reabertura completa, arquivo truncado voltando ao `.bak`, ids repetidos;
 - histórico: busca sem maiúsculas e sem repetir, filtro por pasta, linha truncada, aparar;
-- `OscParser`: ciclo completo, sequência partida entre pedaços, terminador ST, escape do texto;
+- `OscParser`: ciclo completo, sequência partida entre pedaços, terminador ST, escape do texto, nonce (saída forjada ignorada);
+- arquivo bloqueado ao abrir: abre com o `.bak` ou não grava por cima; colar do Ctrl+R; senhas fora do log; VS Code sem cmd;
 - `TabStatus`: erro, sucesso, Ctrl+C (130 e 0xC000013A), pronto no primeiro prompt;
 - detecção de shells, `wsl -l -q` em UTF-16, conversão de pastas, OSC 7;
 - `LaunchBuilder`: linhas de comando exatas, scripts, `~` fora das aspas, CMD, integração desligada, identidade;

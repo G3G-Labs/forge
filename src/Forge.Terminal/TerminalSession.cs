@@ -15,7 +15,7 @@ namespace Forge.Terminal;
 /// </summary>
 public sealed class TerminalSession : IDisposable
 {
-    private readonly OscParser _parser = new();
+    private readonly OscParser _parser;
     private readonly TermPTY _pty;
     private readonly Lock _gate = new();
     private readonly List<string> _pendingInput = [];
@@ -26,6 +26,8 @@ public sealed class TerminalSession : IDisposable
     {
         TabId = tabId;
         Plan = plan;
+        // Só as sequências assinadas com o nonce da sessão contam: a saída de um programa não as forja.
+        _parser = new OscParser(plan.Nonce);
         foreach (var script in plan.Scripts)
             WriteScript(script);
 

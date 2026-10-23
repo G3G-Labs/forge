@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Forge.Core.Models;
 using Forge.Core.Util;
@@ -8,9 +9,12 @@ namespace Forge.Core.Shells;
 /// Monta a linha de comando e os scripts de uma aba. O shell abre interativo, já na pasta e com as variáveis;
 /// o comando de inicialização não entra aqui: ele é digitado no terminal pelo app quando o shell fica pronto,
 /// igual ao usuário faria, e vai para o histórico do próprio shell.
+/// Cada plano ganha um nonce novo (<see cref="LaunchPlan.Nonce"/>); <paramref name="nonce"/> é injetável para os testes.
 /// </summary>
-public sealed partial class LaunchBuilder(string scriptsFolder)
+public sealed partial class LaunchBuilder(string scriptsFolder, Func<string>? nonce = null)
 {
+    private readonly Func<string> _nonce = nonce ?? (() => Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(16)));
+
     public LaunchPlan Build(
         WorkspaceTab tab,
         ShellProfile shell,
@@ -25,6 +29,8 @@ public sealed partial class LaunchBuilder(string scriptsFolder)
             && !settings.IntegrationDisabled.Contains(shell.SettingsId);
 
         var mask = settings.Identity.MaskPrompt ? SanitizeMask(settings.Identity.Display(fallbackUser, fallbackMachine)) : null;
+        // Toda sessão tem nonce, mesmo sem integração: aí nada o emite e as sequências forjadas são todas ignoradas.
+        var sessionNonce = _nonce();
 
         // Sem pasta, a aba abre na home do usuário (e não na pasta de onde o Forge foi aberto).
         ScriptOptions Options(string? shellCwd, string home) => new(
@@ -34,7 +40,8 @@ public sealed partial class LaunchBuilder(string scriptsFolder)
             integration,
             settings.Helpers.CaseInsensitiveCompletion,
             settings.Helpers.FlushHistoryEachCommand,
-            mask);
+            mask,
+            sessionNonce);
 
         // Terminal do Windows numa distro: a pasta é a da distro, vista pelo Windows (\\wsl.localhost\Debian\…).
         if (shell.InWsl && !shell.IsWsl && shell.Kind != ShellKind.Custom)
@@ -42,14 +49,14 @@ public sealed partial class LaunchBuilder(string scriptsFolder)
 
         return (shell.Kind, shell.Flavor) switch
         {
-            (ShellKind.Custom, _) => Raw(shell),
+            (ShellKind.Custom, _) => Raw(shell, sessionNonce),
             (_, ShellFlavor.PowerShell) => PowerShell(tab, shell, Options(cwd, "~")),
             (ShellKind.Wsl, ShellFlavor.Zsh) => WslZsh(tab, shell, Options(cwd is null ? null : PathMapper.ToWsl(cwd), "~")),
             (ShellKind.Wsl, ShellFlavor.Bash) => WslBash(tab, shell, Options(cwd is null ? null : PathMapper.ToWsl(cwd), "~") with { LoginProfile = true }),
-            (ShellKind.Wsl, _) => WslOther(shell, cwd),
+            (ShellKind.Wsl, _) => WslOther(shell, cwd, sessionNonce),
             (ShellKind.GitBash, _) => GitBash(tab, shell, Options(cwd is null ? null : PathMapper.ToMsys(cwd), "~")),
             (ShellKind.Cmd, _) => Cmd(tab, shell, Options(cwd, "%USERPROFILE%")),
-            _ => Raw(shell),
+            _ => Raw(shell, sessionNonce),
         };
     }
 
@@ -98,14 +105,14 @@ public sealed partial class LaunchBuilder(string scriptsFolder)
     {
         var script = ScriptPath(tab, "ps1");
         var args = new[] { "-NoLogo", "-NoExit", "-ExecutionPolicy", "Bypass", "-Command", ". " + ShellScripts.PsQuote(script) };
-        return new LaunchPlan(CommandLine.Join(shell.Executable, args), [new ScriptFile(script, ShellScripts.PowerShell(o), Utf8Bom: true)], o.Integration);
+        return new LaunchPlan(CommandLine.Join(shell.Executable, args), [new ScriptFile(script, ShellScripts.PowerShell(o), Utf8Bom: true)], o.Integration, o.Nonce);
     }
 
     private LaunchPlan WslBash(WorkspaceTab tab, ShellProfile shell, ScriptOptions o)
     {
         var script = ScriptPath(tab, "bash");
         var args = new[] { "-d", shell.Distro!, "--cd", "~", "--", shell.LinuxShell, "--rcfile", PathMapper.ToWsl(script), "-i" };
-        return new LaunchPlan(CommandLine.Join(shell.Executable, args), [new ScriptFile(script, ShellScripts.Bash(o))], o.Integration);
+        return new LaunchPlan(CommandLine.Join(shell.Executable, args), [new ScriptFile(script, ShellScripts.Bash(o))], o.Integration, o.Nonce);
     }
 
     private LaunchPlan WslZsh(WorkspaceTab tab, ShellProfile shell, ScriptOptions o)
@@ -120,42 +127,43 @@ public sealed partial class LaunchBuilder(string scriptsFolder)
                 new ScriptFile(folder + @"\.zprofile", ShellScripts.ZProfile(tab.Id)),
                 new ScriptFile(folder + @"\.zshrc", ShellScripts.Zsh(o)),
             ],
-            o.Integration);
+            o.Integration,
+            o.Nonce);
     }
 
     private LaunchPlan GitBash(WorkspaceTab tab, ShellProfile shell, ScriptOptions o)
     {
         var script = ScriptPath(tab, "bash");
         var args = new[] { "--rcfile", PathMapper.ToMsys(script), "-i" };
-        return new LaunchPlan(CommandLine.Join(shell.Executable, args), [new ScriptFile(script, ShellScripts.Bash(o))], o.Integration);
+        return new LaunchPlan(CommandLine.Join(shell.Executable, args), [new ScriptFile(script, ShellScripts.Bash(o))], o.Integration, o.Nonce);
     }
 
     private LaunchPlan Cmd(WorkspaceTab tab, ShellProfile shell, ScriptOptions o)
     {
         var script = ScriptPath(tab, "cmd");
-        return new LaunchPlan(CommandLine.Join(shell.Executable, ["/k", script]), [new ScriptFile(script, ShellScripts.Cmd(o))], Integration: false);
+        return new LaunchPlan(CommandLine.Join(shell.Executable, ["/k", script]), [new ScriptFile(script, ShellScripts.Cmd(o))], Integration: false, o.Nonce);
     }
 
     /// <summary>
     /// Outros shells do Linux (fish, nu…): abrem como shell de login, direto na pasta da aba, sem script nem integração.
     /// </summary>
-    private static LaunchPlan WslOther(ShellProfile shell, string? cwd)
+    private static LaunchPlan WslOther(ShellProfile shell, string? cwd, string nonce)
     {
         var folder = ExpandHome(cwd is null ? "~" : PathMapper.ToWsl(cwd), shell.WslHome);
         // Sem a home detectada, "~/api" vira "/"; melhor abrir na home de verdade.
         if (cwd is not null && folder == "/" && PathMapper.ToWsl(cwd) != "/")
             folder = "~";
         var args = new[] { "-d", shell.Distro!, "--cd", folder, "--", shell.LinuxShell, "-l" };
-        return new LaunchPlan(CommandLine.Join(shell.Executable, args), [], Integration: false);
+        return new LaunchPlan(CommandLine.Join(shell.Executable, args), [], Integration: false, nonce);
     }
 
     /// <summary>Perfil personalizado: o executável e os argumentos do usuário, sem script nem integração.</summary>
-    private static LaunchPlan Raw(ShellProfile shell)
+    private static LaunchPlan Raw(ShellProfile shell, string nonce)
     {
         var line = CommandLine.Quote(shell.Executable);
         if (!string.IsNullOrWhiteSpace(shell.Arguments))
             line += " " + shell.Arguments.Trim();
-        return new LaunchPlan(line, [], Integration: false);
+        return new LaunchPlan(line, [], Integration: false, nonce);
     }
 
     private string ScriptPath(WorkspaceTab tab, string extension) =>

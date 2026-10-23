@@ -39,7 +39,7 @@ public sealed class SessionManager : IDisposable
         var plan = _launch.Build(tab, shell, _settings.Current, Environment.UserName, Environment.MachineName);
         var appearance = _settings.Current.Appearance;
         // Os valores das variáveis ficam de fora do log: podem ser senhas e tokens.
-        var detail = $"shell: {shell.Name} ({shell.Id})\ncomando: {plan.CommandLine}\npasta: {tab.LastCwd ?? tab.Cwd ?? "(padrão)"}" +
+        var detail = $"shell: {shell.Name} ({shell.Id})\ncomando: {SecretMask.Apply(plan.CommandLine)}\npasta: {tab.LastCwd ?? tab.Cwd ?? "(padrão)"}" +
                      (tab.Env.Count > 0 ? "\nvariáveis: " + string.Join(", ", tab.Env.Keys) : "") +
                      (plan.Integration ? "" : "\nsem integração de shell");
         TerminalSession session;

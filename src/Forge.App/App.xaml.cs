@@ -71,9 +71,10 @@ public partial class App : Application
             notifier.Show("Atenção", problem, isError: true);
 
         var runner = new ProcessRunner(audit);
-        var shells = new ShellCatalog(new WindowsShellProbe(runner));
+        var probe = new WindowsShellProbe(runner);
+        var shells = new ShellCatalog(probe);
         _sessions = new SessionManager(new LaunchBuilder(paths.Scripts), settings, audit);
-        var ctx = new WorkspaceContext(_workspaces, settings, shells, _sessions, new GitService(runner), new ExternalApps(runner), history, notifier, audit, args.Admin);
+        var ctx = new WorkspaceContext(_workspaces, settings, shells, _sessions, new GitService(runner), new ExternalApps(runner, probe), history, notifier, audit, args.Admin);
 
         _vm = new MainWindowViewModel(ctx);
         _vm.SettingsRequested += (_, _) => ShowSettings(settings, shells, history, notifier, paths);

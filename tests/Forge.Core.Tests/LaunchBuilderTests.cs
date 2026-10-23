@@ -12,8 +12,74 @@ public class LaunchBuilderTests
     private static readonly ShellProfile PwshInUbuntu = Pwsh with { Id = "wsl:Ubuntu:pwsh", Name = "Ubuntu · PowerShell 7", SettingsId = "pwsh", Distro = "Ubuntu", WslExecutable = @"C:\Windows\System32\wsl.exe", WslHome = "/home/dev" };
     private static readonly ShellProfile Cmd = new() { Id = "cmd", Name = "Prompt de Comando", Kind = ShellKind.Cmd, Flavor = ShellFlavor.Cmd, Executable = @"C:\Windows\System32\cmd.exe" };
 
+    private const string Nonce = "n0nce";
+
     private static LaunchPlan Build(WorkspaceTab tab, ShellProfile shell, AppSettings? settings = null) =>
-        new LaunchBuilder(Scripts).Build(tab, shell, settings ?? new AppSettings(), "dev", "desk-01");
+        new LaunchBuilder(Scripts, () => Nonce).Build(tab, shell, settings ?? new AppSettings(), "dev", "desk-01");
+
+    [Fact]
+    public void Cada_sessao_ganha_um_nonce_novo()
+    {
+        var builder = new LaunchBuilder(Scripts);
+        var tab = new WorkspaceTab { Id = "n1" };
+
+        var first = builder.Build(tab, Pwsh, new AppSettings(), "dev", "desk-01").Nonce;
+        var second = builder.Build(tab, Pwsh, new AppSettings(), "dev", "desk-01").Nonce;
+
+        Assert.Equal(32, first.Length);
+        Assert.NotEqual(first, second);
+        // Sem integração também: nada emite o nonce, então nenhuma sequência forjada vale.
+        Assert.NotEmpty(builder.Build(tab, Cmd, new AppSettings(), "dev", "desk-01").Nonce);
+    }
+
+    [Fact]
+    public void Scripts_assinam_comando_e_pasta_com_o_nonce()
+    {
+        var zsh = Ubuntu with { Id = "wsl:Ubuntu:zsh", Flavor = ShellFlavor.Zsh, LinuxShell = "zsh" };
+
+        var pwsh = Assert.Single(Build(new WorkspaceTab { Id = "s1" }, Pwsh).Scripts).Content;
+        var bash = Assert.Single(Build(new WorkspaceTab { Id = "s2" }, Ubuntu).Scripts).Content;
+        var zshrc = Build(new WorkspaceTab { Id = "s3" }, zsh).Scripts.Single(s => s.WindowsPath.EndsWith(".zshrc", StringComparison.Ordinal)).Content;
+
+        Assert.Contains("$global:__forgeNonce = 'n0nce'", pwsh);
+        Assert.Contains("\"633;E;$escaped;$($global:__forgeNonce)\"", pwsh);
+        Assert.Contains("\"633;P;Cwd=$uri;$($global:__forgeNonce)\"", pwsh);
+        Assert.Contains("__forge_nonce='n0nce'", bash);
+        Assert.Contains(";${__forge_nonce}\"", bash);
+        Assert.Contains("__forge_nonce='n0nce'", zshrc);
+        Assert.Contains("\"633;E;$s;${__forge_nonce}\"", zshrc);
+        // O OSC 7 sem assinatura saiu dos scripts.
+        Assert.DoesNotContain("7;file:", pwsh + bash + zshrc);
+        Assert.DoesNotContain("__FORGE_", pwsh + bash + zshrc);
+    }
+
+    [Fact]
+    public void PowerShell_na_pasta_da_distro_manda_a_pasta_de_rede_com_quatro_barras()
+    {
+        var pwsh = Assert.Single(Build(new WorkspaceTab { Id = "u1" }, PwshInUbuntu).Scripts).Content;
+
+        // \\wsl.localhost\Ubuntu → //wsl.localhost/Ubuntu → file:////wsl.localhost/Ubuntu (e não file://///).
+        Assert.Contains("$uri = if ($path.StartsWith('//')) { 'file://' + $path } else { 'file:///' + $path }", pwsh);
+    }
+
+    [Fact]
+    public void Linha_que_o_shell_deixa_fora_do_historico_fica_fora_do_Forge()
+    {
+        var zsh = Ubuntu with { Id = "wsl:Ubuntu:zsh", Flavor = ShellFlavor.Zsh, LinuxShell = "zsh" };
+
+        var pwsh = Assert.Single(Build(new WorkspaceTab { Id = "h1" }, Pwsh).Scripts).Content;
+        var bash = Assert.Single(Build(new WorkspaceTab { Id = "h2" }, Ubuntu).Scripts).Content;
+        var zshrc = Build(new WorkspaceTab { Id = "h3" }, zsh).Scripts.Single(s => s.WindowsPath.EndsWith(".zshrc", StringComparison.Ordinal)).Content;
+
+        // PowerShell: espaço no começo e o filtro do PSReadLine (senhas, tokens).
+        Assert.Contains("if (__forgeRecord $line) {", pwsh);
+        Assert.Contains("(Get-PSReadLineOption).AddToHistoryHandler", pwsh);
+        // bash: o mesmo número de histórico no PS0 e no último prompt = a linha não entrou (HISTCONTROL, HISTIGNORE).
+        Assert.Contains("__forge_lasthist=$(__forge_histnum)", bash);
+        Assert.Contains("if [[ ${BASH_REMATCH[1]} != \"$__forge_lasthist\" ]]; then", bash);
+        // zsh: espaço no começo.
+        Assert.Contains("if [[ $1 != ' '* ]]; then", zshrc);
+    }
 
     [Fact]
     public void PowerShell_carrega_o_script_da_aba_com_dot_source()

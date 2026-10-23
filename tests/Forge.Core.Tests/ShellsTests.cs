@@ -39,6 +39,7 @@ public class ShellsTests
     [InlineData("file://pc/home/dev/meu%20projeto", "/home/dev/meu projeto")]
     [InlineData("file:///C:/dev/web", @"C:\dev\web")]
     [InlineData("file:////wsl.localhost/Debian/home/dev", @"\\wsl.localhost\Debian\home\dev")]
+    [InlineData("file://///wsl.localhost/Debian/home/dev", @"\\wsl.localhost\Debian\home\dev")]
     [InlineData("file://pc//wsl.localhost/Debian/home/dev", @"\\wsl.localhost\Debian\home\dev")]
     [InlineData("http://pc/x", null)]
     public void Le_a_pasta_do_OSC_7(string uri, string? expected) => Assert.Equal(expected, PathMapper.FromFileUri(uri));

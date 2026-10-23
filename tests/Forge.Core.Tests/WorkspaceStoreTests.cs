@@ -86,6 +86,52 @@ public class WorkspaceStoreTests
     }
 
     [Fact]
+    public void Arquivo_bloqueado_abre_com_o_bak_e_guarda_o_original()
+    {
+        using var temp = new TempFolder();
+        var path = temp.File("workspaces.json");
+        var file = new JsonFile<WorkspaceFile>(path, ForgeJson.Indented, TimeSpan.FromMilliseconds(1));
+        file.Save(new WorkspaceFile { Groups = [new WorkspaceGroup { Name = "V1" }] });
+        file.Save(new WorkspaceFile { Groups = [new WorkspaceGroup { Name = "V2" }] });
+
+        WorkspaceFile loaded;
+        using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            // Antivírus ou OneDrive segurando o arquivo ao ligar o PC.
+            loaded = file.Load();
+        }
+
+        Assert.Equal("V1", Assert.Single(loaded.Groups).Name);
+        Assert.NotNull(file.Problem);
+        Assert.False(file.SavesBlocked);
+
+        file.Save(loaded);
+        Assert.Contains("V2", File.ReadAllText(path + ".ilegivel"));
+    }
+
+    [Fact]
+    public void Arquivo_bloqueado_sem_bak_nao_e_apagado()
+    {
+        using var temp = new TempFolder();
+        var path = temp.File("workspaces.json");
+        File.WriteAllText(path, "{ \"groups\": [ { \"name\": \"Rentalz\" } ] }");
+        using var store = new WorkspaceStore(path);
+
+        using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            store.Load();
+
+        Assert.True(store.SavesBlocked);
+        Assert.NotNull(store.LoadProblem);
+        Assert.Empty(store.Current.Groups);
+
+        // O app abriu vazio: o que ele gravar não pode substituir os grupos que estão no disco.
+        store.Update(f => WorkspaceEditor.AddGroup(f, "Meu workspace"));
+        store.Flush();
+        Assert.Contains("Rentalz", File.ReadAllText(path));
+        Assert.DoesNotContain("Meu workspace", File.ReadAllText(path));
+    }
+
+    [Fact]
     public void Ids_repetidos_e_nomes_vazios_sao_corrigidos()
     {
         var file = new WorkspaceFile

@@ -15,5 +15,5 @@ public sealed record CommandStarted : ShellEvent;
 /// <summary>OSC 133;D — o comando terminou. Só é emitido se houve um <see cref="CommandStarted"/> antes.</summary>
 public sealed record CommandFinished(int? ExitCode) : ShellEvent;
 
-/// <summary>OSC 7 — a pasta atual mudou.</summary>
+/// <summary>OSC 633;P;Cwd= (ou OSC 7, no parser sem nonce) — a pasta atual mudou.</summary>
 public sealed record CwdChanged(string Path) : ShellEvent;

@@ -72,9 +72,10 @@ public static class PathMapper
         // /C:/dev/web → C:\dev\web
         if (path.Length >= 3 && path[0] == '/' && char.IsAsciiLetter(path[1]) && path[2] == ':')
             return path[1..].Replace('/', '\\');
-        // //servidor/pasta → \\servidor\pasta
+        // //servidor/pasta → \\servidor\pasta. Barras a mais (file:///// de versões antigas do script do PowerShell)
+        // não viram \\\servidor.
         if (path.StartsWith("//", StringComparison.Ordinal))
-            return path.Replace('/', '\\');
+            return @"\\" + path.TrimStart('/').Replace('/', '\\');
         return path;
     }
 

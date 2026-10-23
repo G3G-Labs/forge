@@ -10,11 +10,13 @@ namespace Forge.Core.Persistence;
 public sealed class JsonFile<T>(string filePath, JsonSerializerOptions options, TimeSpan? retryDelay = null)
     where T : class, new()
 {
-    private const int ReadAttempts = 5;
+    // Cerca de três segundos: ao ligar o PC (com "Iniciar com o Windows"), antivírus e OneDrive seguram os arquivos por um tempo.
+    private const int ReadAttempts = 15;
 
     private readonly TimeSpan _retryDelay = retryDelay ?? TimeSpan.FromMilliseconds(200);
 
-    // O arquivo existe mas estava bloqueado na abertura: antes de gravar por cima, guarda o original ao lado.
+    // O arquivo existe mas estava bloqueado na abertura e o app abriu com o .bak: antes de gravar por cima, guarda o
+    // original ao lado.
     private bool _unreadable;
 
     public string FilePath { get; } = filePath;
@@ -24,18 +26,32 @@ public sealed class JsonFile<T>(string filePath, JsonSerializerOptions options, 
     /// <summary>Aviso para o usuário quando a última leitura não usou o arquivo como estava (ou null).</summary>
     public string? Problem { get; private set; }
 
+    /// <summary>
+    /// O arquivo existia, estava bloqueado e não havia .bak: o app abriu sem ele e <see cref="Save"/> não grava nada
+    /// até a próxima leitura. Gravar por cima trocaria os workspaces do usuário pelos de um app que abriu vazio.
+    /// </summary>
+    public bool SavesBlocked { get; private set; }
+
     public T Load()
     {
         Problem = null;
         _unreadable = false;
+        SavesBlocked = false;
         if (!File.Exists(FilePath))
             return TryLoad(BackupPath) ?? new T();
 
         if (!TryRead(FilePath, out var json))
         {
             // Bloqueado por outro programa (antivírus, sincronização…): o arquivo está bom e não pode ser perdido.
-            _unreadable = true;
-            Problem = $"Não foi possível ler {Path.GetFileName(FilePath)} agora. O app abriu sem ele e não vai apagá-lo.";
+            var name = Path.GetFileName(FilePath);
+            if (TryLoad(BackupPath) is { } backup)
+            {
+                _unreadable = true;
+                Problem = $"Não foi possível ler {name} agora. O app abriu com a cópia de segurança (.bak); o original fica guardado como .ilegivel.";
+                return backup;
+            }
+            SavesBlocked = true;
+            Problem = $"Não foi possível ler {name} agora. O app abriu sem ele e não vai gravar nada por cima: feche e abra o Forge de novo.";
             return new T();
         }
 
@@ -57,6 +73,8 @@ public sealed class JsonFile<T>(string filePath, JsonSerializerOptions options, 
 
     public void Save(T value)
     {
+        if (SavesBlocked)
+            return;
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(FilePath))!);
         if (_unreadable)
         {

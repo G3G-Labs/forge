@@ -203,11 +203,14 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
         EnsureStarted();
     }
 
-    /// <summary>Cola um comando do histórico (Ctrl+R) sem executar: o usuário confere e dá Enter.</summary>
+    /// <summary>
+    /// Cola um comando do histórico (Ctrl+R) sem executar: o usuário confere e dá Enter. Vai em uma linha só, porque
+    /// uma quebra de linha no terminal é Enter.
+    /// </summary>
     public void Paste(string command)
     {
         EnsureStarted();
-        _session?.Send(command);
+        _session?.Send(PasteText.SingleLine(command));
     }
 
     public async Task RefreshGitAsync(bool fresh = false)
@@ -259,8 +262,16 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
     [RelayCommand]
     private void OpenInVsCode()
     {
-        if (Shell is { } shell)
+        if (Shell is not { } shell)
+            return;
+        try
+        {
             _ctx.Apps.OpenInVsCode(Folder, shell);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+        {
+            _ctx.Notifier.Show("Não foi possível abrir no VS Code", ex.Message, isError: true);
+        }
     }
 
     [RelayCommand]
@@ -332,7 +343,7 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
     private void SendStartup()
     {
         _startupPending = false;
-        _ctx.Audit.Info("comando", $"Comando ao abrir na aba \"{Name}\": {Model.Startup}", $"grupo: {Group.Name}\npasta: {Cwd}");
+        _ctx.Audit.Info("comando", $"Comando ao abrir na aba \"{Name}\": {SecretMask.Apply(Model.Startup!)}", $"grupo: {Group.Name}\npasta: {Cwd}");
         _session?.Run(Model.Startup!);
         _status.CommandSent();
         State = _status.State;
@@ -369,7 +380,7 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
         {
             // Comando com código diferente de zero sai como aviso: é o primeiro lugar a olhar quando algo deu errado.
             _ctx.Audit.Write(finished.ExitCode is null or 0 ? AuditLevel.Info : AuditLevel.Warning, "comando",
-                finished.Command,
+                SecretMask.Apply(finished.Command),
                 $"aba: {Name} · grupo: {Group.Name}\npasta: {finished.Cwd ?? Cwd}\ncódigo de saída: {finished.ExitCode?.ToString() ?? "?"}");
             _ctx.History.Append(new HistoryEntry(DateTimeOffset.Now, finished.Command, Id, Name, Group.Name, finished.Cwd ?? Cwd, finished.ExitCode));
             // Um checkout ou commit acabou de acontecer? A branch na barra lateral muda sozinha.
