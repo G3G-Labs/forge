@@ -54,7 +54,8 @@ public class WorkspaceStoreTests
         var tab2 = Assert.Single(group2.Tabs);
         Assert.Equal("Cliente A", group2.Name);
         Assert.Equal("web", tab2.Name);
-        Assert.Equal(@"C:\dev\cliente-a", tab2.Cwd);
+        Assert.Equal(@"C:\dev\cliente-a", group2.Folder);
+        Assert.Null(tab2.Cwd); // segue a pasta do grupo
         Assert.Equal("npm run dev", tab2.Startup);
         Assert.True(tab2.Autostart);
         Assert.Equal("3001", tab2.Env["PORT"]);

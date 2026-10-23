@@ -2,13 +2,13 @@ using Forge.Core.Models;
 
 namespace Forge.Core.Workspaces;
 
-/// <summary>Uma aba a iniciar na restauração e se o comando de inicialização roda junto.</summary>
+/// <summary>Uma aba a abrir na restauração e se o "comando ao abrir" dela roda junto.</summary>
 public sealed record StartStep(WorkspaceTab Tab, bool RunStartup);
 
 /// <summary>
-/// Quem ganha shell ao abrir o app. Todas as abas aparecem na hora, mas só iniciam a selecionada e as marcadas
-/// para iniciar automaticamente; as outras iniciam quando o usuário clicar nelas. Assim abrir dezenas de abas
-/// continua rápido e não vira uma rajada de processos.
+/// Quem ganha shell ao abrir o app. Todas as abas aparecem na hora, mas só abrem a selecionada e as marcadas para
+/// abrir junto com o app; as outras abrem quando o usuário clicar nelas. Assim abrir dezenas de abas continua rápido e
+/// não vira uma rajada de processos. O "comando ao abrir" roda sempre que o shell da aba abre.
 /// </summary>
 public static class RestorePlanner
 {
@@ -20,11 +20,11 @@ public static class RestorePlanner
 
         // A visível primeiro: é a que o usuário está olhando.
         if (selected is not null)
-            steps.Add(new StartStep(selected, RunStartup: selected.Autostart && HasStartup(selected)));
+            steps.Add(new StartStep(selected, HasStartup(selected)));
 
         foreach (var tab in tabs)
             if (tab != selected && tab.Autostart)
-                steps.Add(new StartStep(tab, RunStartup: HasStartup(tab)));
+                steps.Add(new StartStep(tab, HasStartup(tab)));
 
         return steps;
     }

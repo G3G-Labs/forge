@@ -39,7 +39,7 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
 
     /// <summary>O grupo atual. Muda quando a aba é arrastada para outro grupo.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Color))]
+    [NotifyPropertyChangedFor(nameof(Color), nameof(ShellId), nameof(Shell), nameof(ShellName), nameof(Subtitle))]
     private GroupViewModel _group = null!;
 
     [ObservableProperty]
@@ -56,7 +56,6 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StatusText), nameof(IsRunning))]
-    [NotifyCanExecuteChangedFor(nameof(StartCommand), nameof(StopCommand))]
     private TabRunState _state = TabRunState.NotStarted;
 
     [ObservableProperty]
@@ -69,18 +68,25 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
 
     /// <summary>Pasta atual: a informada pelo shell (OSC 7) ou, antes disso, a inicial.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Folder), nameof(Subtitle))]
     private string? _cwd;
 
-    public ShellProfile? Shell => _ctx.Shells.Find(Model.Shell);
+    /// <summary>Id do shell em uso: o da aba ou, se ela segue o grupo, o ambiente do grupo.</summary>
+    public string ShellId => WorkspaceEditor.ShellOf(Group.Model, Model, _ctx.Settings.Current.DefaultShell);
 
-    public string ShellName => Shell?.Name ?? Model.Shell;
+    public ShellProfile? Shell => _ctx.Shells.Find(ShellId);
+
+    public string ShellName => Shell?.Name ?? ShellId;
+
+    /// <summary>A aba segue o ambiente do grupo (não escolheu um shell próprio).</summary>
+    public bool FollowsGroupShell => Model.Shell is null;
 
     /// <summary>Cor da aba; sem cor própria, a do grupo.</summary>
     public string Color => Model.Color ?? Group.Color;
 
     public bool HasStartup => !string.IsNullOrWhiteSpace(Model.Startup);
 
-    public string Subtitle => HasStartup ? $"{ShellName} · {Model.Startup}" : $"{ShellName} · sem comando de inicialização";
+    public string Subtitle => HasStartup ? $"{ShellName} · ao abrir: {Model.Startup}" : $"{ShellName} · {Folder}";
 
     public bool IsRunning => State == TabRunState.Running;
 
@@ -119,17 +125,26 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
 
     partial void OnStateChanged(TabRunState value) => Group.Refresh();
 
+    // Ao abrir o painel, ele relê o modelo: o grupo pode ter mudado de ambiente ou de pasta.
+    partial void OnIsConfigOpenChanged(bool value)
+    {
+        if (value)
+            Config.Load();
+    }
+
+    public bool IsStarted => _session is not null;
+
     /// <summary>
-    /// Abre o shell, se ainda não abriu. Com <paramref name="runStartup"/>, o comando de inicialização é digitado
-    /// assim que o shell mostrar o primeiro prompt.
+    /// Abre o shell, se ainda não abriu. Se a aba tem "comando ao abrir", ele é digitado assim que o shell mostrar o
+    /// primeiro prompt. O Forge não inicia nem para projetos por conta própria: só roda o que o usuário escreveu.
     /// </summary>
-    public void EnsureStarted(bool runStartup = false)
+    public void EnsureStarted()
     {
         if (_session is null)
         {
             if (Shell is not { } shell)
             {
-                _ctx.Notifier.Show($"O shell \"{Model.Shell}\" não foi encontrado nesta máquina.", "Escolha outro em Configurar aba.", isError: true);
+                _ctx.Notifier.Show($"O shell \"{ShellId}\" não foi encontrado nesta máquina.", "Escolha outro em Configurar aba ou Configurar grupo.", isError: true);
                 return;
             }
             _status = new TabStatus();
@@ -138,10 +153,11 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
             _status.ShellStarted();
             State = _status.State;
             Cwd = LaunchBuilder.ResolveCwd(Model, Group.Folder, _ctx.Settings.Current.FolderOnRestore);
+            OnPropertyChanged(nameof(IsStarted));
             _ = RefreshGitAsync();
+            if (HasStartup)
+                RunStartupWhenReady();
         }
-        if (runStartup && HasStartup)
-            RunStartupWhenReady();
     }
 
     /// <summary>Encerra o shell da aba (fechar a aba, ou reabrir com shell/pasta/variáveis novas).</summary>
@@ -154,13 +170,15 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
         _session = null;
         _startupPending = false;
         State = TabRunState.NotStarted;
+        OnPropertyChanged(nameof(IsStarted));
     }
 
+    /// <summary>Fecha e reabre o shell da aba (vale o shell, a pasta e as variáveis atuais; o comando ao abrir roda de novo).</summary>
+    [RelayCommand]
     public void RestartShell()
     {
-        var wasRunning = IsRunning;
         CloseSession();
-        EnsureStarted(runStartup: wasRunning);
+        EnsureStarted();
     }
 
     /// <summary>Cola um comando do histórico (Ctrl+R) sem executar: o usuário confere e dá Enter.</summary>
@@ -181,49 +199,6 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
         catch (Exception ex) when (ex is IOException or InvalidOperationException or Win32Exception)
         {
             Git = null;
-        }
-    }
-
-    private bool CanStart() => HasStartup && State != TabRunState.Running;
-
-    [RelayCommand(CanExecute = nameof(CanStart))]
-    private void Start()
-    {
-        EnsureStarted();
-        RunStartupWhenReady();
-    }
-
-    /// <summary>Ctrl+C no comando atual e, quando ele parar, o comando de inicialização de novo.</summary>
-    [RelayCommand]
-    private async Task RestartAsync()
-    {
-        if (_session is null)
-        {
-            EnsureStarted(runStartup: true);
-            return;
-        }
-        if (IsRunning)
-        {
-            _session.Interrupt();
-            // Espera até 3 s o shell confirmar o fim (com integração). Sem integração, segue depois do tempo.
-            for (var i = 0; i < 30 && IsRunning && _session.Plan.Integration; i++)
-                await Task.Delay(100);
-            if (!_session.Plan.Integration)
-                await Task.Delay(500);
-        }
-        if (HasStartup)
-            SendStartup();
-    }
-
-    [RelayCommand(CanExecute = nameof(IsRunning))]
-    private void Stop()
-    {
-        _session?.Interrupt();
-        // Sem integração (CMD) não há aviso de fim: depois do Ctrl+C, a aba volta a parada.
-        if (_session is { Plan.Integration: false })
-        {
-            _status.AssumeStopped();
-            State = _status.State;
         }
     }
 
@@ -283,7 +258,8 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
         OnPropertyChanged(nameof(Subtitle));
         OnPropertyChanged(nameof(ShellName));
         OnPropertyChanged(nameof(HasStartup));
-        StartCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(Color));
+        OnPropertyChanged(nameof(FollowsGroupShell));
     }
 
     private void RunStartupWhenReady()

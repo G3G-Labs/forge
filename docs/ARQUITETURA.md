@@ -114,7 +114,8 @@ Forge/
 │       │   └── Notifier.cs          aviso no canto ("Workspaces restaurados", erros)
 │       ├── ViewModels/
 │       │   ├── MainWindowViewModel.cs  árvore, seleção, restauração, ações com atalho
-│       │   ├── GroupViewModel.cs       grupo: nome, cor, recolher, iniciar/parar grupo
+│       │   ├── GroupViewModel.cs       grupo: nome, cor, pasta, ambiente, recolher
+│       │   ├── GroupEditorViewModel.cs criar e configurar grupo (pasta + Windows ou WSL)
 │       │   ├── TabViewModel.cs         aba: shell, estado, Git, iniciar/reiniciar/parar, VS Code…
 │       │   ├── TabConfigViewModel.cs   "Configurar aba" no lugar
 │       │   ├── HistorySearchViewModel.cs  Ctrl+R
@@ -126,6 +127,7 @@ Forge/
 │           ├── MainWindow.xaml(.cs)    barra de título, três áreas fixas, popups
 │           ├── Sidebar.xaml(.cs)       árvore, renomear no lugar, arrastar, "+", barra recolhida
 │           ├── TabHeader.xaml(.cs)     nome, estado, ações e menu "…"
+│           ├── GroupDialog.xaml(.cs)   criar e configurar grupo
 │           ├── TabConfigPanel.xaml(.cs)
 │           ├── TerminalArea.xaml(.cs)  os controles nativos; só o da aba selecionada visível
 │           ├── StatusBar.xaml(.cs)     shell, pasta, branch, alterações, administrador
@@ -140,14 +142,14 @@ Forge/
 |---|---|
 | Detecção de shells e perfis | `ShellCatalog`, `WindowsShellProbe`, `WslListParser`; perfis em `AppSettings.CustomProfiles` |
 | Abas (criar, fechar, duplicar, arrastar, renomear, cor) | `WorkspaceEditor`, `MainWindowViewModel`, `Sidebar.xaml.cs` |
-| Grupos (nome, cor, recolher, arrastar abas entre eles) | `GroupViewModel`, `WorkspaceEditor.MoveTab` |
+| Grupos (nome, cor, pasta, ambiente Windows ou WSL, recolher, arrastar abas entre eles) | `GroupViewModel`, `GroupEditorViewModel`, `GroupDialog.xaml`, `WorkspaceEditor` |
 | Configuração da aba | `TabConfigViewModel`, `TabConfigPanel.xaml`, `LaunchBuilder` |
 | Persistência e restauração | `JsonFile`, `WorkspaceStore`, `RestorePlanner`, `MainWindowViewModel.RestoreAsync` |
 | Autocomplete sem maiúsculas, histórico garantido, Ctrl+R | `ShellScripts`, `OscParser`, `TabStatus`, `HistoryStore`, `HistorySearchViewModel` |
 | Aparência e importação do Windows Terminal | `ColorScheme`, `WindowsTerminalImport`, `TerminalThemes`, `Tokens*.xaml` |
 | Identificação no terminal | `IdentitySettings`, `ShellScripts` (prompt), `TabHeader.xaml` |
 | Git | `GitService`, `GitStatusParser`, atualizado a cada comando que termina |
-| Ações rápidas | `TabViewModel` (comandos), `ExternalApps`, `Elevation`, `GroupViewModel.StartGroup/StopGroup` |
+| Ações rápidas | `TabViewModel` (VS Code, Explorer, copiar caminho, reiniciar shell, administrador), `ExternalApps`, `Elevation` |
 
 ## Fluxos
 
@@ -158,7 +160,7 @@ Forge/
 2. A janela aparece na hora, com o tamanho e a posição salvos.
 3. `MainWindowViewModel.InitializeAsync`: detecta os shells, monta a árvore e, na primeira vez, cria
    "Meu workspace" com uma aba no shell padrão (nenhuma configuração obrigatória).
-4. `RestorePlanner`: a aba selecionada ganha shell primeiro; depois as marcadas para iniciar automaticamente, uma a
+4. `RestorePlanner`: a aba selecionada ganha shell primeiro; depois as marcadas para abrir junto com o app, uma a
    cada 150 ms. As outras ficam só na árvore, sem processo, até o clique. Aviso "Workspaces restaurados".
 
 ### Uma aba ganha shell
@@ -177,14 +179,19 @@ sequenceDiagram
     TS->>Sh: controle nativo inicia o processo
     Sh-->>TS: saída (com OSC 133 invisíveis)
     TS-->>VM: ShellEvent (PromptStarted…)
-    VM->>TS: digita o comando de inicialização + Enter
+    VM->>TS: digita o comando ao abrir + Enter (se houver)
     Sh-->>VM: 133;C → rodando · 133;D;código → parada ou erro
     VM->>VM: histórico unificado + Git atualizado
 ```
 
-O comando de inicialização não vai na linha de comando: o app o **digita** no shell quando o primeiro prompt aparece
-(ou, sem integração, quando o processo responde). Assim ele roda exatamente como se o usuário digitasse, vai para o
-histórico do próprio shell, e Ctrl+C para o servidor sem fechar a aba. "Reiniciar" é Ctrl+C e o comando de novo.
+O "comando ao abrir" é opcional e escrito pelo usuário (bun dev, yarn dev…): o Forge não tem botão de iniciar ou
+parar projeto. Ele não vai na linha de comando: o app o **digita** no shell quando o primeiro prompt aparece (ou, sem
+integração, quando o processo responde), toda vez que o shell da aba abre. Assim roda como se o usuário digitasse, vai
+para o histórico do próprio shell, e Ctrl+C para o processo sem fechar a aba.
+
+**Grupo = projeto.** `WorkspaceGroup` guarda `Folder` e `Shell` (o ambiente: `pwsh`, `cmd`, `wsl:Ubuntu`…). Uma aba
+com `Shell` e `Cwd` nulos segue o grupo (`WorkspaceEditor.ShellOf`, `LaunchBuilder.ResolveCwd`); mudar o grupo muda
+todas as abas que o seguem, no próximo shell delas.
 
 ### Scripts e integração de shell
 

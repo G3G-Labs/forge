@@ -21,24 +21,6 @@
                            Visibility="{Binding DataContext.ShowIdentity, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}" />
                 <Border Width="1" Height="20" Margin="0,0,6,0" Background="{DynamicResource Forge.LineBrush}" />
 
-                <!-- Parada com comando: botão Iniciar em destaque. Rodando: reiniciar e parar. -->
-                <Button Style="{StaticResource Forge.PrimaryButton}" Height="30" Padding="12,0" Margin="0,0,4,0" Command="{Binding StartCommand}"
-                        ToolTip="Iniciar comando (Ctrl+Shift+R)"
-                        Visibility="{Binding IsRunning, Converter={StaticResource InverseBoolToVisibility}}">
-                    <StackPanel Orientation="Horizontal">
-                        <ui:SymbolIcon Symbol="Play24" Filled="True" FontSize="12" />
-                        <TextBlock Text="Iniciar" Margin="6,0,0,0" />
-                    </StackPanel>
-                </Button>
-                <Button Style="{StaticResource Forge.IconButton}" Command="{Binding RestartCommand}" ToolTip="Reiniciar (Ctrl+Shift+R)"
-                        AutomationProperties.Name="Reiniciar comando" Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}">
-                    <ui:SymbolIcon Symbol="ArrowClockwise24" FontSize="16" />
-                </Button>
-                <Button Style="{StaticResource Forge.IconButton}" Command="{Binding StopCommand}" ToolTip="Parar (Ctrl+C)"
-                        AutomationProperties.Name="Parar comando">
-                    <ui:SymbolIcon Symbol="Stop24" Filled="True" FontSize="13" />
-                </Button>
-                <Border Width="1" Height="20" Margin="4,0" Background="{DynamicResource Forge.LineBrush}" />
                 <Button Style="{StaticResource Forge.IconButton}" Command="{Binding OpenInVsCodeCommand}" ToolTip="Abrir no VS Code (Ctrl+Shift+E)"
                         AutomationProperties.Name="Abrir no VS Code">
                     <ui:SymbolIcon Symbol="Code24" FontSize="16" />
@@ -46,6 +28,10 @@
                 <Button Style="{StaticResource Forge.IconButton}" Command="{Binding OpenInExplorerCommand}" ToolTip="Abrir no Explorer"
                         AutomationProperties.Name="Abrir no Explorer">
                     <ui:SymbolIcon Symbol="Folder24" FontSize="16" />
+                </Button>
+                <Button Style="{StaticResource Forge.IconButton}" Command="{Binding ConfigureCommand}" ToolTip="Configurar aba: nome, cor, shell, pasta, comando ao abrir"
+                        AutomationProperties.Name="Configurar aba">
+                    <ui:SymbolIcon Symbol="Settings24" FontSize="16" />
                 </Button>
                 <Button Style="{StaticResource Forge.IconButton}" ToolTip="Mais ações" AutomationProperties.Name="Mais ações" Click="OnMoreClick">
                     <ui:SymbolIcon Symbol="MoreHorizontal24" FontSize="16" />
@@ -57,6 +43,7 @@
                                       Visibility="{Binding IsElevated, Converter={StaticResource InverseBoolToVisibility}}" />
                             <MenuItem Header="Renomear" InputGestureText="F2" Command="{Binding BeginRenameCommand}" />
                             <MenuItem Header="Configurar aba…" Command="{Binding ConfigureCommand}" />
+                            <MenuItem Header="Reiniciar shell" InputGestureText="Ctrl+Shift+R" Command="{Binding RestartShellCommand}" />
                             <Separator />
                             <MenuItem Header="Cor da aba">
                                 <MenuItem Header="Do grupo" Command="{Binding SetColorCommand}" CommandParameter="{x:Null}" />
@@ -80,7 +67,7 @@
                            ToolTip="Duplo clique na barra lateral ou F2 para renomear" />
                 <TextBlock Text="{Binding Subtitle}" Margin="10,0,0,0" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                            Foreground="{DynamicResource Forge.TextMutedBrush}" />
-                <Border Margin="10,0,0,0" Style="{StaticResource Forge.StatePill}">
+                <Border Margin="10,0,0,0" Style="{StaticResource Forge.StatePill}" Visibility="{Binding IsStarted, Converter={StaticResource BoolToVisibility}}">
                     <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="Medium" VerticalAlignment="Center" />
                 </Border>
             </StackPanel>

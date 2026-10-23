@@ -82,7 +82,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         WorkspaceGroup? group = null;
         _ctx.Store.Update(f =>
         {
-            group = WorkspaceEditor.AddGroup(f, "Meu workspace");
+            group = WorkspaceEditor.AddGroup(f, "Meu workspace", shell: shell.Id);
             WorkspaceEditor.AddTab(group, shell, name: shell.Name);
         });
         Groups.Add(new GroupViewModel(group!, this, _ctx));
@@ -102,7 +102,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
                 SelectedTab = tab;
                 first = false;
             }
-            tab.EnsureStarted(step.RunStartup);
+            tab.EnsureStarted();
             if (step.RunStartup)
                 started++;
             await Task.Delay(150);
@@ -112,7 +112,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         if (tabs > 1 && !IsAdmin)
         {
             var detail = started > 0
-                ? $"{Groups.Count} grupos e {tabs} abas, como você deixou. {started} comandos iniciaram sozinhos; as demais abas abrem o shell quando você clicar nelas."
+                ? $"{Groups.Count} grupos e {tabs} abas, como você deixou. {started} abas rodaram o comando ao abrir; as demais abrem o shell quando você clicar nelas."
                 : $"{Groups.Count} grupos e {tabs} abas, como você deixou.";
             _ctx.Notifier.Show("Workspaces restaurados", detail);
         }
@@ -139,18 +139,51 @@ public sealed partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private void Select(TabViewModel tab) => SelectedTab = tab;
 
+    /// <summary>Mostra a janela de criar ou configurar grupo. A view liga; devolve true se o usuário salvou.</summary>
+    public Func<GroupEditorViewModel, bool>? ShowGroupEditor { get; set; }
+
+    /// <summary>
+    /// Grupo novo: nome, cor, pasta do projeto e ambiente (Windows ou WSL). Já nasce com uma aba aberta na pasta.
+    /// </summary>
     [RelayCommand]
     private void NewGroup()
     {
-        WorkspaceGroup? group = null;
-        _ctx.Store.Update(f => group = WorkspaceEditor.AddGroup(f, "Novo grupo"));
-        Groups.Add(new GroupViewModel(group!, this, _ctx) { IsRenaming = true });
+        var editor = new GroupEditorViewModel(Shells, _ctx.Settings.Current.DefaultShell, existing: null,
+            Core.Util.Palette.NextGroupColor(Groups.Select(g => g.Color)));
+        if (ShowGroupEditor?.Invoke(editor) != true || editor.ShellId is not { } shellId)
+            return;
+
+        WorkspaceGroup? model = null;
+        _ctx.Store.Update(f => model = WorkspaceEditor.AddGroup(f, editor.Name.Trim(), NullIfEmpty(editor.Folder), shellId, editor.Color));
+        var group = new GroupViewModel(model!, this, _ctx);
+        Groups.Add(group);
+        NewTab(group, null);
     }
 
-    /// <summary>Aba nova: dois cliques ("+" e o shell). A pasta sugerida é a do grupo.</summary>
+    /// <summary>Configurar grupo: mudar o ambiente ou a pasta vale para as abas que seguem o grupo, no próximo shell.</summary>
+    public void EditGroup(GroupViewModel group)
+    {
+        var editor = new GroupEditorViewModel(Shells, _ctx.Settings.Current.DefaultShell, group.Model, group.Color);
+        if (ShowGroupEditor?.Invoke(editor) != true || editor.ShellId is not { } shellId)
+            return;
+
+        var environmentChanged = shellId != group.Model.Shell || NullIfEmpty(editor.Folder) != group.Model.Folder;
+        _ctx.Store.Update(_ =>
+        {
+            group.Model.Folder = NullIfEmpty(editor.Folder);
+            group.Model.Shell = shellId;
+        });
+        group.Name = editor.Name.Trim();
+        group.Color = editor.Color;
+        group.ModelChanged();
+        if (environmentChanged && group.Tabs.Any(t => t.IsStarted))
+            _ctx.Notifier.Show("Grupo atualizado", "As abas abertas usam o novo ambiente e a nova pasta quando o shell delas reabrir (… › Reiniciar shell).");
+    }
+
+    /// <summary>Aba nova no ambiente e na pasta do grupo ("+" ou Ctrl+T). Outro shell: Configurar aba.</summary>
     public void NewTab(GroupViewModel group, ShellProfile? shell)
     {
-        shell ??= _ctx.Shells.Default(_ctx.Settings.Current.DefaultShell);
+        shell ??= _ctx.Shells.Find(group.Model.Shell ?? "") ?? _ctx.Shells.Default(_ctx.Settings.Current.DefaultShell);
         if (shell is null)
         {
             _ctx.Notifier.Show("Nenhum shell encontrado", "Cadastre um perfil em Configurações › Shells e perfis.", isError: true);
@@ -168,11 +201,14 @@ public sealed partial class MainWindowViewModel : ObservableObject
         var group = SelectedTab?.Group ?? Groups.FirstOrDefault();
         if (group is null)
         {
+            // Sem grupo ainda: criar o grupo já abre a primeira aba.
             NewGroup();
-            group = Groups[^1];
+            return;
         }
         NewTab(group, null);
     }
+
+    private static string? NullIfEmpty(string? text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
 
     public void CloseTab(TabViewModel tab)
     {
@@ -215,7 +251,11 @@ public sealed partial class MainWindowViewModel : ObservableObject
     /// <summary>Uma cópia da aba na janela de administrador, depois da confirmação do UAC.</summary>
     public void OpenAsAdmin(TabViewModel tab)
     {
-        var payload = new AdminTabPayload(tab.Group.Name, tab.Group.Color, tab.Model.CloneWithNewId()).Encode();
+        // A janela elevada não tem o grupo: a cópia leva o shell e a pasta já resolvidos.
+        var copy = tab.Model.CloneWithNewId();
+        copy.Shell = tab.Shell?.Id ?? copy.Shell;
+        copy.Cwd ??= tab.Group.Folder;
+        var payload = new AdminTabPayload(tab.Group.Name, tab.Group.Color, copy).Encode();
         if (!Elevation.StartAdminWindow(["--add-tab", payload]))
             _ctx.Notifier.Show("Aba de administrador cancelada", "O Windows não recebeu a confirmação do UAC.");
     }
@@ -269,7 +309,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private Task RestartCurrentAsync() => SelectedTab?.RestartCommand.ExecuteAsync(null) ?? Task.CompletedTask;
+    private void RestartShellCurrent() => SelectedTab?.RestartShell();
 
     [RelayCommand]
     private void OpenCurrentInVsCode() => SelectedTab?.OpenInVsCodeCommand.Execute(null);

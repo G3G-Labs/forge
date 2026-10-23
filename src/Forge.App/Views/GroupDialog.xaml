@@ -1,0 +1,107 @@
+<Window
+    x:Class="Forge.App.Views.GroupDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:vm="clr-namespace:Forge.App.ViewModels"
+    mc:Ignorable="d"
+    d:DataContext="{d:DesignInstance Type=vm:GroupEditorViewModel}"
+    Title="{Binding Title}" Width="540" SizeToContent="Height"
+    WindowStartupLocation="CenterOwner" ShowInTaskbar="False" ResizeMode="NoResize"
+    Background="{DynamicResource Forge.ChromeBrush}" Foreground="{DynamicResource Forge.TextBrush}"
+    FontFamily="{DynamicResource Forge.FontUi}" FontSize="13">
+
+    <!-- Um grupo é um projeto: nome, cor, pasta e o ambiente em que as abas dele rodam. -->
+    <Window.InputBindings>
+        <KeyBinding Key="Escape" Command="{Binding CancelCommand}" />
+    </Window.InputBindings>
+
+    <StackPanel Margin="24,20,24,20">
+        <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" />
+
+        <!-- Prévia: como o grupo vai aparecer na barra lateral -->
+        <Border Margin="0,14,0,18" Padding="12,10" CornerRadius="8" Background="{DynamicResource Forge.RaisedBrush}">
+            <DockPanel>
+                <Border DockPanel.Dock="Left" Width="14" Height="14" CornerRadius="4" VerticalAlignment="Top" Margin="0,3,10,0"
+                        Background="{Binding Color, Converter={StaticResource HexToBrush}}" />
+                <StackPanel>
+                    <TextBlock Text="{Binding PreviewName}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding PreviewDetail}" Margin="0,2,0,0" FontSize="12" TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource Forge.TextMutedBrush}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <TextBlock Text="Nome" Style="{StaticResource Forge.FieldLabel}" />
+        <TextBox x:Name="NameBox" Style="{StaticResource Forge.Input}" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                 AutomationProperties.Name="Nome do grupo" />
+
+        <TextBlock Text="Cor" Margin="0,16,0,6" Style="{StaticResource Forge.FieldLabel}" />
+        <ItemsControl ItemsSource="{Binding Colors}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:ColorOption}">
+                    <Button Width="32" Height="32" Margin="0,0,8,0" ToolTip="{Binding Name}" AutomationProperties.Name="{Binding Name}"
+                            Command="{Binding DataContext.PickColorCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"
+                            Cursor="Hand">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Ring" CornerRadius="9" BorderThickness="2" BorderBrush="Transparent" Padding="3">
+                                    <Border CornerRadius="6" Background="{Binding Hex, Converter={StaticResource HexToBrush}}" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                        <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource Forge.TextBrush}" />
+                                    </DataTrigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock Text="Ambiente" Margin="0,16,0,6" Style="{StaticResource Forge.FieldLabel}" />
+        <UniformGrid Columns="2">
+            <RadioButton Margin="0,0,6,0" IsChecked="{Binding IsWindows}" GroupName="Ambiente">
+                <StackPanel>
+                    <TextBlock Text="Windows" FontWeight="SemiBold" />
+                    <TextBlock Text="PowerShell, CMD ou Git Bash" FontSize="12" Foreground="{DynamicResource Forge.TextMutedBrush}" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton Margin="6,0,0,0" IsChecked="{Binding IsWsl}" IsEnabled="{Binding HasWsl}" GroupName="Ambiente">
+                <StackPanel>
+                    <TextBlock Text="WSL" FontWeight="SemiBold" />
+                    <TextBlock Text="Linux numa distro instalada" FontSize="12" Foreground="{DynamicResource Forge.TextMutedBrush}" />
+                </StackPanel>
+            </RadioButton>
+        </UniformGrid>
+
+        <ComboBox Margin="0,10,0,0" Height="32" ItemsSource="{Binding WindowsShells}" SelectedItem="{Binding WindowsShell}" DisplayMemberPath="Name"
+                  AutomationProperties.Name="Shell do Windows"
+                  Visibility="{Binding IsWindows, Converter={StaticResource BoolToVisibility}}" />
+        <ComboBox Margin="0,10,0,0" Height="32" ItemsSource="{Binding Distros}" SelectedItem="{Binding Distro}" DisplayMemberPath="Name"
+                  AutomationProperties.Name="Distro do WSL"
+                  Visibility="{Binding IsWsl, Converter={StaticResource BoolToVisibility}}" />
+
+        <TextBlock Text="Pasta do projeto" Margin="0,16,0,6" Style="{StaticResource Forge.FieldLabel}" />
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Margin="8,0,0,0" Style="{StaticResource Forge.SecondaryButton}" Content="Procurar…"
+                    Command="{Binding BrowseCommand}" />
+            <TextBox Style="{StaticResource Forge.MonoInput}" Text="{Binding Folder, UpdateSourceTrigger=PropertyChanged}"
+                     AutomationProperties.Name="Pasta do projeto" />
+        </DockPanel>
+        <TextBlock Margin="0,6,0,0" Style="{StaticResource Forge.Hint}" Text="{Binding FolderHint}" />
+
+        <StackPanel Margin="0,22,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Style="{StaticResource Forge.SecondaryButton}" Content="Cancelar" Command="{Binding CancelCommand}" Margin="0,0,8,0" />
+            <Button Style="{StaticResource Forge.PrimaryButton}" Content="{Binding SaveLabel}" Command="{Binding SaveCommand}" IsDefault="True" />
+        </StackPanel>
+    </StackPanel>
+</Window>

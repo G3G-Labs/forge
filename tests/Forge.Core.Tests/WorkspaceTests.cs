@@ -24,10 +24,10 @@ public class WorkspaceTests
 
         var plan = RestorePlanner.Plan(file);
 
-        // worker: visível, mas sem "iniciar automaticamente" → só o shell. api: automática → shell e comando.
+        // worker: visível → abre, com o comando ao abrir. api: marcada para abrir junto com o app → abre também.
         // web: nem visível nem automática → espera o clique.
         Assert.Collection(plan,
-            s => Assert.Equal((worker.Id, false), (s.Tab.Id, s.RunStartup)),
+            s => Assert.Equal((worker.Id, true), (s.Tab.Id, s.RunStartup)),
             s => Assert.Equal((api.Id, true), (s.Tab.Id, s.RunStartup)));
     }
 
@@ -41,17 +41,29 @@ public class WorkspaceTests
     }
 
     [Fact]
-    public void Aba_nova_usa_a_pasta_do_grupo_e_nome_sem_repetir()
+    public void Aba_nova_segue_a_pasta_e_o_ambiente_do_grupo()
     {
         var file = new WorkspaceFile();
-        var group = WorkspaceEditor.AddGroup(file, "Cliente A", folder: @"C:\dev\cliente-a");
+        var group = WorkspaceEditor.AddGroup(file, "Cliente A", folder: "~/cliente-a", shell: Ubuntu.Id);
 
         var first = WorkspaceEditor.AddTab(group, Ubuntu);
         var second = WorkspaceEditor.AddTab(group, Ubuntu);
+        var other = WorkspaceEditor.AddTab(group, Pwsh);
 
-        Assert.Equal(@"C:\dev\cliente-a", first.Cwd);
+        // Mesmo ambiente do grupo: a aba não guarda shell nem pasta, e acompanha o grupo se ele mudar.
+        Assert.Null(first.Shell);
+        Assert.Null(first.Cwd);
+        Assert.Equal("~/cliente-a", Forge.Core.Shells.LaunchBuilder.ResolveCwd(first, group.Folder, FolderOnRestore.StartFolder));
+        Assert.Equal("wsl:Ubuntu", WorkspaceEditor.ShellOf(group, first, "pwsh"));
         Assert.Equal("ubuntu", first.Name);
         Assert.Equal("ubuntu 2", second.Name);
+
+        // Outro shell: fica gravado na aba.
+        Assert.Equal("pwsh", other.Shell);
+
+        group.Shell = "wsl:Debian";
+        Assert.Equal("wsl:Debian", WorkspaceEditor.ShellOf(group, first, "pwsh"));
+        Assert.Equal("pwsh", WorkspaceEditor.ShellOf(group, other, "pwsh"));
     }
 
     [Fact]

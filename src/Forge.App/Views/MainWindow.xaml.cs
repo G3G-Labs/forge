@@ -31,6 +31,9 @@ public partial class MainWindow : Window
             Title = "Forge — Administrador";
         }
 
+        // Criar e configurar grupo: a única janela além das Configurações.
+        vm.ShowGroupEditor = editor => new GroupDialog(editor) { Owner = this }.ShowDialog() == true;
+
         _shortcuts = new ShortcutMap(this, vm, settings.Current);
         settings.Changed += (_, _) => _shortcuts.Reload(settings.Current);
         ToastPopup.CustomPopupPlacementCallback = PlaceToast;

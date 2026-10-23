@@ -21,27 +21,32 @@ public static class WorkspaceEditor
     public static WorkspaceGroup? FindGroup(WorkspaceFile file, string groupId) =>
         file.Groups.FirstOrDefault(g => g.Id == groupId);
 
-    public static WorkspaceGroup AddGroup(WorkspaceFile file, string name, string? folder = null)
+    /// <summary>Grupo novo: um projeto, com a pasta e o ambiente (shell) que as abas dele vão usar.</summary>
+    public static WorkspaceGroup AddGroup(WorkspaceFile file, string name, string? folder = null, string? shell = null, string? color = null)
     {
         var group = new WorkspaceGroup
         {
             Name = UniqueName(file.Groups.Select(g => g.Name), name),
-            Color = Palette.NextGroupColor(file.Groups.Select(g => g.Color)),
+            Color = color ?? Palette.NextGroupColor(file.Groups.Select(g => g.Color)),
             Folder = folder,
+            Shell = shell,
         };
         file.Groups.Add(group);
         return group;
     }
 
-    /// <summary>Aba nova no grupo: a pasta sugerida é a do grupo, e o nome vem do shell ("pwsh", "ubuntu"…).</summary>
+    /// <summary>
+    /// Aba nova no grupo. Com o shell do próprio grupo, a aba guarda null e segue o ambiente do grupo; a pasta também
+    /// fica com a do grupo. O nome vem do shell ("pwsh", "ubuntu"…).
+    /// </summary>
     public static WorkspaceTab AddTab(WorkspaceGroup group, ShellProfile shell, string? name = null, string? cwd = null)
     {
         var baseName = name ?? DefaultTabName(shell);
         var tab = new WorkspaceTab
         {
             Name = UniqueName(group.Tabs.Select(t => t.Name), baseName),
-            Shell = shell.Id,
-            Cwd = cwd ?? group.Folder,
+            Shell = shell.Id == group.Shell ? null : shell.Id,
+            Cwd = cwd,
         };
         group.Tabs.Add(tab);
         return tab;
@@ -94,6 +99,10 @@ public static class WorkspaceEditor
             file.SelectedTabId = null;
         return file.Groups.Remove(group);
     }
+
+    /// <summary>O shell que a aba usa: o dela, senão o ambiente do grupo, senão o padrão das configurações.</summary>
+    public static string ShellOf(WorkspaceGroup group, WorkspaceTab tab, string defaultShell) =>
+        tab.Shell ?? group.Shell ?? defaultShell;
 
     /// <summary>Todas as abas na ordem da árvore (Ctrl+Tab, Ctrl+1…9).</summary>
     public static IEnumerable<WorkspaceTab> AllTabs(WorkspaceFile file) => file.Groups.SelectMany(g => g.Tabs);

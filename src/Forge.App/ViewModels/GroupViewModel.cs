@@ -44,6 +44,19 @@ public sealed partial class GroupViewModel : ObservableObject, IRenamable
 
     public string? Folder => Model.Folder;
 
+    /// <summary>"Windows · PowerShell 7" ou "WSL · Ubuntu": onde as abas do grupo rodam.</summary>
+    public string EnvironmentLabel
+    {
+        get
+        {
+            var shell = _ctx.Shells.Find(Model.Shell ?? _ctx.Settings.Current.DefaultShell);
+            return shell is null ? "Shell padrão" : shell.IsWsl ? $"WSL · {shell.Name}" : $"Windows · {shell.Name}";
+        }
+    }
+
+    /// <summary>Dica da linha do grupo: ambiente e pasta.</summary>
+    public string Details => Folder is { } folder ? $"{EnvironmentLabel}\n{folder}" : $"{EnvironmentLabel}\nsem pasta definida";
+
     /// <summary>Iniciais para a barra recolhida: "Cliente A" → "CA", "Pessoal" → "P".</summary>
     public string Initials => string.Concat(Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
 
@@ -111,26 +124,21 @@ public sealed partial class GroupViewModel : ObservableObject, IRenamable
     [RelayCommand]
     private void SetColor(string color) => Color = color;
 
-    /// <summary>"+" no grupo: sem shell escolhido, usa o padrão das configurações.</summary>
+    /// <summary>"+" no grupo: aba nova já no ambiente e na pasta do grupo.</summary>
     [RelayCommand]
     private void NewTab(ShellProfile? shell) => Owner.NewTab(this, shell);
 
-    /// <summary>Sobe todas as abas com comando, uma de cada vez (sem rajada de processos).</summary>
     [RelayCommand]
-    private async Task StartGroupAsync()
-    {
-        foreach (var tab in Tabs.Where(t => t.HasStartup && !t.IsRunning).ToList())
-        {
-            tab.EnsureStarted(runStartup: true);
-            await Task.Delay(150);
-        }
-    }
+    private void Configure() => Owner.EditGroup(this);
 
-    [RelayCommand]
-    private void StopGroup()
+    /// <summary>Configurar grupo mudou a pasta ou o ambiente: atualiza o grupo e as abas que o seguem.</summary>
+    public void ModelChanged()
     {
-        foreach (var tab in Tabs.Where(t => t.IsRunning))
-            tab.StopCommand.Execute(null);
+        OnPropertyChanged(nameof(Folder));
+        OnPropertyChanged(nameof(EnvironmentLabel));
+        OnPropertyChanged(nameof(Details));
+        foreach (var tab in Tabs)
+            tab.ModelChanged();
     }
 
     [RelayCommand]

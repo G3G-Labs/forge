@@ -7,7 +7,7 @@ namespace Forge.App.Views;
 
 /// <summary>
 /// Árvore de grupos e abas. O código daqui é só interação que o XAML não expressa: renomear no lugar,
-/// arrastar abas entre grupos e o menu de shells do "+".
+/// arrastar abas entre grupos e abrir a configuração do grupo com duplo clique.
 /// </summary>
 public partial class Sidebar : UserControl
 {
@@ -73,19 +73,14 @@ public partial class Sidebar : UserControl
         }
     }
 
-    // "+" no grupo: dois cliques até a aba nova (este e o do shell). A pasta sugerida é a do grupo.
-    private void OnNewTabClick(object sender, RoutedEventArgs e)
+    // Duplo clique no cabeçalho do grupo abre "Configurar grupo".
+    private void OnGroupHeadClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not Button { DataContext: GroupViewModel group } button || Main is not { } main)
-            return;
-        var menu = new ContextMenu { PlacementTarget = button };
-        menu.Items.Add(new MenuItem { Header = $"Nova aba em {group.Name}", IsEnabled = false });
-        if (group.Folder is { } folder)
-            menu.Items.Add(new MenuItem { Header = $"Pasta: {folder}", IsEnabled = false });
-        menu.Items.Add(new Separator());
-        foreach (var shell in main.Shells)
-            menu.Items.Add(new MenuItem { Header = shell.Name, Command = group.NewTabCommand, CommandParameter = shell });
-        menu.IsOpen = true;
+        if (e.ClickCount == 2 && sender is FrameworkElement { DataContext: GroupViewModel group } && !group.IsRenaming)
+        {
+            group.ConfigureCommand.Execute(null);
+            e.Handled = true;
+        }
     }
 
     private void OnRailGroupClick(object sender, RoutedEventArgs e)

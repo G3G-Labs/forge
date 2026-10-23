@@ -1,6 +1,9 @@
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using Forge.App.Services;
 using Forge.App.ViewModels;
@@ -14,6 +17,9 @@ namespace Forge.App.Views;
 /// </summary>
 public partial class TerminalArea : UserControl
 {
+    private const int WmKeyDown = 0x0100;
+    private const int VkTab = 0x09;
+
     private MainWindowViewModel? _vm;
     private SessionManager? _sessions;
 
@@ -21,7 +27,35 @@ public partial class TerminalArea : UserControl
     {
         InitializeComponent();
         DataContextChanged += (_, _) => Attach(DataContext as MainWindowViewModel);
+        ComponentDispatcher.ThreadPreprocessMessage += OnThreadMessage;
+        Dispatcher.ShutdownStarted += (_, _) => ComponentDispatcher.ThreadPreprocessMessage -= OnThreadMessage;
     }
+
+    /// <summary>
+    /// Tab e Shift+Tab dentro do terminal são do shell (autocomplete). O terminal é uma janela nativa e, sem isto, o WPF
+    /// trata o Tab como navegação entre controles e o move para outro lugar da janela. A tecla vai direto para o shell
+    /// da aba: Tab como "\t" e Shift+Tab como ESC [ Z, como faz o Windows Terminal.
+    /// </summary>
+    private void OnThreadMessage(ref MSG msg, ref bool handled)
+    {
+        if (handled || msg.message != WmKeyDown || (int)msg.wParam != VkTab || !IsVisible || _sessions is null)
+            return;
+        var modifiers = Keyboard.Modifiers;
+        if (modifiers is not (ModifierKeys.None or ModifierKeys.Shift))
+            return;
+        // Só quando a tecla vai para uma janela filha da janela do app, ou seja, o terminal nativo com o foco.
+        var main = Window.GetWindow(this) is { } window ? new WindowInteropHelper(window).Handle : IntPtr.Zero;
+        if (main == IntPtr.Zero || msg.hwnd == main || !IsChild(main, msg.hwnd))
+            return;
+        if (_vm?.SelectedTab is not { } tab || _sessions.Find(tab.Id) is not { } session)
+            return;
+        session.Send(modifiers == ModifierKeys.Shift ? "\x1b[Z" : "\t");
+        handled = true;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsChild(IntPtr parent, IntPtr child);
 
     private void Attach(MainWindowViewModel? vm)
     {

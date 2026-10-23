@@ -17,6 +17,7 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -31,33 +32,94 @@
                 </Button>
                 <TextBlock DockPanel.Dock="Right" Text="Alterações salvas automaticamente" FontSize="12" Margin="0,0,12,0" VerticalAlignment="Center"
                            Foreground="{DynamicResource Forge.TextMutedBrush}" />
-                <TextBlock Text="Configurar aba" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <!-- Prévia: a aba como aparece na barra lateral -->
+                <Border DockPanel.Dock="Left" Width="12" Height="12" CornerRadius="3" Margin="0,0,10,0" VerticalAlignment="Center"
+                        Background="{Binding PreviewColor, Converter={StaticResource HexToBrush}}" />
+                <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
             </DockPanel>
 
+            <!-- Nome e cor -->
             <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,14">
-                <TextBlock Text="Shell" Style="{StaticResource Forge.FieldLabel}" />
-                <ComboBox ItemsSource="{Binding Shells}" SelectedItem="{Binding Shell}" DisplayMemberPath="Name" Height="32" />
+                <TextBlock Text="Nome" Style="{StaticResource Forge.FieldLabel}" />
+                <TextBox Style="{StaticResource Forge.Input}" Text="{Binding Name, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Nome da aba" />
             </StackPanel>
             <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,14">
-                <TextBlock Text="Pasta inicial" Style="{StaticResource Forge.FieldLabel}" />
-                <TextBox Style="{StaticResource Forge.MonoInput}" Text="{Binding Cwd, UpdateSourceTrigger=LostFocus}"
-                         AutomationProperties.Name="Pasta inicial" />
+                <TextBlock Text="Cor" Style="{StaticResource Forge.FieldLabel}" />
+                <StackPanel Orientation="Horizontal">
+                    <Button Height="30" Padding="10,0" Margin="0,0,8,0" Command="{Binding UseGroupColorCommand}" Content="Do grupo"
+                            ToolTip="Usar a cor do grupo">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource Forge.SecondaryButton}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding UsesGroupColor}" Value="True">
+                                        <Setter Property="BorderBrush" Value="{DynamicResource Forge.TextBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <ItemsControl ItemsSource="{Binding Colors}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:ColorOption}">
+                                <Button Width="30" Height="30" Margin="0,0,6,0" ToolTip="{Binding Name}" AutomationProperties.Name="{Binding Name}" Cursor="Hand"
+                                        Command="{Binding DataContext.PickColorCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="Ring" CornerRadius="8" BorderThickness="2" BorderBrush="Transparent" Padding="3">
+                                                <Border CornerRadius="5" Background="{Binding Hex, Converter={StaticResource HexToBrush}}" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                    <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource Forge.TextBrush}" />
+                                                </DataTrigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
             </StackPanel>
 
+            <!-- Onde a aba roda -->
             <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,14">
-                <TextBlock Text="Comando de inicialização" Style="{StaticResource Forge.FieldLabel}" />
-                <TextBox Style="{StaticResource Forge.MonoInput}" Text="{Binding Startup, UpdateSourceTrigger=LostFocus}"
-                         AutomationProperties.Name="Comando de inicialização" />
-                <TextBlock Margin="0,6,0,0" Style="{StaticResource Forge.Hint}"
-                           Text="Roda pelo botão Iniciar, ou sozinho ao abrir o app se a chave ao lado estiver ligada." />
+                <TextBlock Text="Shell" Style="{StaticResource Forge.FieldLabel}" />
+                <ComboBox ItemsSource="{Binding ShellChoices}" SelectedItem="{Binding ShellChoice}" DisplayMemberPath="Label" Height="32"
+                          AutomationProperties.Name="Shell da aba" />
             </StackPanel>
             <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,14">
-                <ui:ToggleSwitch IsChecked="{Binding Autostart}" Content="Iniciar automaticamente" Margin="0,22,0,0" />
-                <TextBlock Margin="0,6,0,0" Style="{StaticResource Forge.Hint}"
-                           Text="Executa o comando quando o app abre, mesmo sem a aba estar visível." />
+                <TextBlock Text="Pasta" Style="{StaticResource Forge.FieldLabel}" />
+                <Grid>
+                    <TextBox x:Name="CwdBox" Style="{StaticResource Forge.MonoInput}" Text="{Binding Cwd, UpdateSourceTrigger=LostFocus}"
+                             AutomationProperties.Name="Pasta da aba" />
+                    <TextBlock Text="{Binding FolderPlaceholder}" Margin="10,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                               FontFamily="{DynamicResource Forge.FontMono}" FontSize="12" Foreground="{DynamicResource Forge.TextMutedBrush}"
+                               TextTrimming="CharacterEllipsis"
+                               Visibility="{Binding Text, ElementName=CwdBox, Converter={StaticResource InverseNullToVisibility}}" />
+                </Grid>
             </StackPanel>
 
-            <StackPanel Grid.Row="3" Grid.Column="0">
+            <!-- Comando ao abrir: opcional, escrito pelo usuário -->
+            <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,0,14">
+                <TextBlock Text="Comando ao abrir (opcional)" Style="{StaticResource Forge.FieldLabel}" />
+                <TextBox Style="{StaticResource Forge.MonoInput}" Text="{Binding Startup, UpdateSourceTrigger=LostFocus}"
+                         AutomationProperties.Name="Comando ao abrir" />
+                <TextBlock Margin="0,6,0,0" Style="{StaticResource Forge.Hint}"
+                           Text="Ex.: bun dev, yarn dev, npm run dev. Roda sempre que o shell desta aba abre; vazio, a aba só abre o shell na pasta." />
+            </StackPanel>
+            <StackPanel Grid.Row="3" Grid.Column="2" Margin="0,0,0,14">
+                <ui:ToggleSwitch IsChecked="{Binding Autostart}" Content="Abrir junto com o app" Margin="0,22,0,0" />
+                <TextBlock Margin="0,6,0,0" Style="{StaticResource Forge.Hint}"
+                           Text="Ligado, a aba abre (e roda o comando, se houver) quando o Forge abre. Desligado, só quando você clicar nela." />
+            </StackPanel>
+
+            <StackPanel Grid.Row="4" Grid.Column="0">
                 <TextBlock Text="Variáveis de ambiente (opcional)" Style="{StaticResource Forge.FieldLabel}" />
                 <ItemsControl ItemsSource="{Binding Env}">
                     <ItemsControl.ItemTemplate>
@@ -76,22 +138,21 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <Button Style="{StaticResource Forge.IconButton}" Width="Auto" Height="28" Padding="8,0" HorizontalAlignment="Left"
+                <Button Style="{StaticResource Forge.IconButton}" Width="Auto" Height="28" HorizontalAlignment="Left"
                         Command="{Binding AddEnvCommand}" Foreground="{DynamicResource Forge.AccentBrush}">
                     <StackPanel Orientation="Horizontal" Margin="8,0">
                         <ui:SymbolIcon Symbol="Add24" FontSize="12" />
                         <TextBlock Text="Adicionar variável" Margin="6,0,0,0" />
                     </StackPanel>
                 </Button>
-                <TextBlock Margin="0,4,0,0" Style="{StaticResource Forge.Hint}" Text="Aplicadas pelo script da aba, inclusive em abas WSL." />
             </StackPanel>
 
-            <Border Grid.Row="3" Grid.Column="2" VerticalAlignment="Top" Padding="12,10" CornerRadius="8" Background="{DynamicResource Forge.RaisedBrush}"
+            <Border Grid.Row="4" Grid.Column="2" VerticalAlignment="Top" Padding="12,10" CornerRadius="8" Background="{DynamicResource Forge.RaisedBrush}"
                     Visibility="{Binding NeedsRestart, Converter={StaticResource BoolToVisibility}}">
                 <DockPanel>
-                    <Button DockPanel.Dock="Right" Style="{StaticResource Forge.SecondaryButton}" Height="28" Content="Reiniciar agora"
+                    <Button DockPanel.Dock="Right" Style="{StaticResource Forge.SecondaryButton}" Height="28" Content="Reiniciar shell agora"
                             Command="{Binding RestartNowCommand}" />
-                    <TextBlock Text="Shell, pasta e variáveis valem no próximo início." FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                    <TextBlock Text="Shell, pasta e variáveis valem quando o shell reabre." FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
                                Margin="0,0,10,0" />
                 </DockPanel>
             </Border>

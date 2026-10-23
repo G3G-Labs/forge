@@ -4,9 +4,12 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Background="{DynamicResource Forge.WindowBrush}">
 
-    <!-- O terminal ocupa todo o espaço restante, sem bordas nem painéis extras. Um controle por aba iniciada. -->
+    <!--
+        O terminal ocupa todo o espaço restante, sem bordas nem painéis extras. Um controle por aba iniciada.
+        A margem interna afasta o texto da barra lateral e do cabeçalho; o fundo é o mesmo do terminal, então ela some.
+    -->
     <Grid>
-        <Grid x:Name="TermHost" />
+        <Grid x:Name="TermHost" Margin="14,10,8,6" />
         <TextBlock x:Name="EmptyText" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
                    Foreground="{DynamicResource Forge.TextMutedBrush}"
                    Text="Nenhuma aba aberta.&#10;Ctrl+T abre uma aba no grupo atual; Ctrl+Shift+G cria um grupo." />

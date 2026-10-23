@@ -23,9 +23,12 @@ public sealed partial class EnvVarViewModel(TabConfigViewModel owner) : Observab
     private void Remove() => owner.RemoveEnv(this);
 }
 
+/// <summary>Uma opção de shell da aba: null segue o ambiente do grupo.</summary>
+public sealed record ShellChoice(string? Id, string Label);
+
 /// <summary>
-/// "Configurar aba": painel no lugar, logo abaixo do cabeçalho, sem modal. Cada campo salva ao mudar.
-/// Shell, pasta e variáveis valem no próximo início do shell; o painel oferece reiniciar agora.
+/// "Configurar aba": painel no lugar, logo abaixo do cabeçalho, sem modal. Nome e cor mudam na hora, com prévia;
+/// shell, pasta e variáveis valem no próximo shell, e o painel oferece reiniciar agora.
 /// </summary>
 public sealed partial class TabConfigViewModel : ObservableObject
 {
@@ -42,12 +45,15 @@ public sealed partial class TabConfigViewModel : ObservableObject
 
     private WorkspaceTab Model => _tab.Model;
 
-    public IReadOnlyList<ShellProfile> Shells => _ctx.Shells.Profiles;
-
     public ObservableCollection<EnvVarViewModel> Env { get; } = [];
 
+    public IReadOnlyList<ColorOption> Colors { get; } = ColorOption.CreateSet();
+
     [ObservableProperty]
-    private ShellProfile? _shell;
+    private IReadOnlyList<ShellChoice> _shellChoices = [];
+
+    [ObservableProperty]
+    private ShellChoice? _shellChoice;
 
     [ObservableProperty]
     private string _cwd = "";
@@ -62,10 +68,39 @@ public sealed partial class TabConfigViewModel : ObservableObject
     [ObservableProperty]
     private bool _needsRestart;
 
-    private void Load()
+    /// <summary>Nome da aba, o mesmo da barra lateral.</summary>
+    public string Name
+    {
+        get => _tab.Name;
+        set
+        {
+            if (!string.IsNullOrWhiteSpace(value) && value != _tab.Name)
+            {
+                _tab.Name = value.Trim();
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    /// <summary>Cor que a aba mostra agora (a própria ou a do grupo), para a prévia.</summary>
+    public string PreviewColor => _tab.Color;
+
+    public bool UsesGroupColor => Model.Color is null;
+
+    /// <summary>O que aparece no campo de pasta vazio: a pasta que a aba herda do grupo.</summary>
+    public string FolderPlaceholder => _tab.Group.Folder is { } folder ? $"Do grupo: {folder}" : "Sem pasta no grupo: abre na pasta inicial do shell";
+
+    /// <summary>Recarrega do modelo (ao abrir o painel): o grupo pode ter mudado de ambiente ou de pasta.</summary>
+    public void Load()
     {
         _loading = true;
-        Shell = _ctx.Shells.Find(Model.Shell);
+        var group = _tab.Group;
+        ShellChoices =
+        [
+            new ShellChoice(null, $"Do grupo ({group.EnvironmentLabel})"),
+            .. _ctx.Shells.Profiles.Select(p => new ShellChoice(p.Id, p.IsWsl ? $"WSL · {p.Name}" : $"Windows · {p.Name}")),
+        ];
+        ShellChoice = ShellChoices.FirstOrDefault(c => c.Id == Model.Shell) ?? ShellChoices[0];
         Cwd = Model.Cwd ?? "";
         Startup = Model.Startup ?? "";
         Autostart = Model.Autostart;
@@ -77,10 +112,13 @@ public sealed partial class TabConfigViewModel : ObservableObject
             row.Value = value;
             Env.Add(row);
         }
+        RefreshColor();
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(FolderPlaceholder));
         _loading = false;
     }
 
-    partial void OnShellChanged(ShellProfile? value)
+    partial void OnShellChoiceChanged(ShellChoice? value)
     {
         if (_loading || value is null || value.Id == Model.Shell)
             return;
@@ -124,6 +162,12 @@ public sealed partial class TabConfigViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void PickColor(ColorOption option) => SetColor(option.Hex);
+
+    [RelayCommand]
+    private void UseGroupColor() => SetColor(null);
+
+    [RelayCommand]
     private void AddEnv() => Env.Add(new EnvVarViewModel(this));
 
     [RelayCommand]
@@ -135,6 +179,21 @@ public sealed partial class TabConfigViewModel : ObservableObject
 
     [RelayCommand]
     private void Close() => _tab.IsConfigOpen = false;
+
+    private void SetColor(string? hex)
+    {
+        _ctx.Store.Update(_ => Model.Color = hex);
+        _tab.ModelChanged();
+        RefreshColor();
+    }
+
+    private void RefreshColor()
+    {
+        foreach (var option in Colors)
+            option.IsSelected = string.Equals(option.Hex, Model.Color, StringComparison.OrdinalIgnoreCase);
+        OnPropertyChanged(nameof(PreviewColor));
+        OnPropertyChanged(nameof(UsesGroupColor));
+    }
 
     private void Save(Action<WorkspaceTab> change, bool restart)
     {

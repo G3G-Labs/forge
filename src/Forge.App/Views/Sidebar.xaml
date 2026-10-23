@@ -51,8 +51,8 @@
         </ContextMenu>
 
         <ContextMenu x:Key="GroupMenu" x:Shared="False" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-            <MenuItem Header="Iniciar grupo" Command="{Binding StartGroupCommand}" />
-            <MenuItem Header="Parar grupo" Command="{Binding StopGroupCommand}" />
+            <MenuItem Header="Nova aba" InputGestureText="Ctrl+T" Command="{Binding NewTabCommand}" CommandParameter="{x:Null}" />
+            <MenuItem Header="Configurar grupo…" Command="{Binding ConfigureCommand}" />
             <MenuItem Header="Renomear" Command="{Binding BeginRenameCommand}" />
             <MenuItem Header="Cor do grupo">
                 <MenuItem Header="Azul" Command="{Binding SetColorCommand}" CommandParameter="#4F8EF7" />
@@ -107,7 +107,8 @@
         <!-- Um grupo: cabeçalho com cor, nome e, ao passar o mouse, Iniciar/Parar grupo e "+". -->
         <DataTemplate x:Key="GroupBlock" DataType="{x:Type vm:GroupViewModel}">
             <StackPanel Margin="0,0,0,4">
-                <Grid x:Name="Head" Height="32" Margin="6,0" Background="Transparent" ContextMenu="{StaticResource GroupMenu}"
+                <Grid x:Name="Head" Height="32" Margin="6,0" Background="Transparent" ContextMenu="{StaticResource GroupMenu}" ToolTip="{Binding Details}"
+                      MouseLeftButtonDown="OnGroupHeadClick"
                       AllowDrop="True" Drop="OnGroupDrop">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
@@ -142,16 +143,12 @@
                                Visibility="{Binding IsMouseOver, ElementName=Head, Converter={StaticResource InverseBoolToVisibility}}" />
                     <StackPanel Grid.Column="3" Orientation="Horizontal"
                                 Visibility="{Binding IsMouseOver, ElementName=Head, Converter={StaticResource BoolToVisibility}}">
-                        <Button Style="{StaticResource Forge.SmallIconButton}" Command="{Binding StartGroupCommand}"
-                                ToolTip="Iniciar grupo" AutomationProperties.Name="Iniciar grupo" Foreground="{DynamicResource Forge.RunningBrush}">
-                            <ui:SymbolIcon Symbol="Play24" Filled="True" FontSize="12" />
+                        <Button Style="{StaticResource Forge.SmallIconButton}" Command="{Binding ConfigureCommand}"
+                                ToolTip="Configurar grupo: nome, cor, pasta e ambiente" AutomationProperties.Name="Configurar grupo">
+                            <ui:SymbolIcon Symbol="Settings24" FontSize="12" />
                         </Button>
-                        <Button Style="{StaticResource Forge.SmallIconButton}" Command="{Binding StopGroupCommand}"
-                                ToolTip="Parar grupo" AutomationProperties.Name="Parar grupo">
-                            <ui:SymbolIcon Symbol="Stop24" Filled="True" FontSize="12" />
-                        </Button>
-                        <Button Style="{StaticResource Forge.SmallIconButton}" Click="OnNewTabClick"
-                                ToolTip="Nova aba no grupo (Ctrl+T)" AutomationProperties.Name="Nova aba no grupo">
+                        <Button Style="{StaticResource Forge.SmallIconButton}" Command="{Binding NewTabCommand}" CommandParameter="{x:Null}"
+                                ToolTip="Nova aba no ambiente e na pasta do grupo (Ctrl+T)" AutomationProperties.Name="Nova aba no grupo">
                             <ui:SymbolIcon Symbol="Add24" FontSize="13" />
                         </Button>
                     </StackPanel>

@@ -27,8 +27,14 @@ public sealed class WorkspaceGroup
 
     public bool Collapsed { get; set; }
 
-    /// <summary>Pasta sugerida para as abas novas do grupo.</summary>
+    /// <summary>Pasta do projeto. Toda aba do grupo abre nela, a menos que a aba tenha uma pasta própria.</summary>
     public string? Folder { get; set; }
+
+    /// <summary>
+    /// Ambiente do grupo: o perfil de shell que as abas usam por padrão ("pwsh" no Windows, "wsl:Ubuntu" no WSL).
+    /// null usa o shell padrão das configurações.
+    /// </summary>
+    public string? Shell { get; set; }
 
     public List<WorkspaceTab> Tabs { get; set; } = [];
 }
@@ -42,15 +48,22 @@ public sealed class WorkspaceTab
     /// <summary>Cor própria da aba; null usa a do grupo.</summary>
     public string? Color { get; set; }
 
-    /// <summary>Perfil de shell: "pwsh", "powershell", "cmd", "gitbash", "wsl:Ubuntu" ou "custom:…".</summary>
-    public string Shell { get; set; } = ShellIds.PowerShell;
+    /// <summary>
+    /// Perfil de shell próprio da aba ("pwsh", "cmd", "gitbash", "wsl:Ubuntu", "custom:…"). null segue o ambiente do
+    /// grupo: mudar o ambiente do grupo muda todas as abas que não escolheram outro.
+    /// </summary>
+    public string? Shell { get; set; }
 
-    /// <summary>Pasta inicial, no formato do shell (C:\dev\web, /home/dev/api ou ~/api).</summary>
+    /// <summary>Pasta própria da aba, no formato do shell (C:\dev\web, /home/dev/api ou ~/api). null usa a do grupo.</summary>
     public string? Cwd { get; set; }
 
-    /// <summary>Comando de inicialização (ex.: npm run dev). Roda pelo botão Iniciar ou ao abrir, se <see cref="Autostart"/>.</summary>
+    /// <summary>
+    /// Comando ao abrir (opcional), escrito pelo usuário: bun dev, yarn dev, npm run dev… Roda sempre que o shell da
+    /// aba abre. O Forge não adivinha ferramenta nem tem botão de iniciar ou parar projeto.
+    /// </summary>
     public string? Startup { get; set; }
 
+    /// <summary>Abre a aba (e roda o comando, se houver) junto com o app, mesmo sem estar visível.</summary>
     public bool Autostart { get; set; }
 
     /// <summary>Variáveis de ambiente opcionais, aplicadas pelo script que o app gera para a aba.</summary>
