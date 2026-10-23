@@ -20,6 +20,7 @@ public sealed class TerminalSession : IDisposable
     private readonly Lock _gate = new();
     private readonly List<string> _pendingInput = [];
     private bool _started;
+    private bool _disposed;
 
     public TerminalSession(string tabId, LaunchPlan plan, TerminalTheme theme, string fontFamily, double fontSize)
     {
@@ -31,6 +32,13 @@ public sealed class TerminalSession : IDisposable
         _pty = new TermPTY();
         // A saída passa por aqui antes de ir para a tela: as OSC são lidas, nada é alterado.
         _pty.InterceptOutputToUITerminal = OnOutput;
+        // Depois de fechada, a sessão descarta o que o controle ainda tentar escrever (o aviso de foco, por exemplo):
+        // sem isto, o TermPTY lança "There is no writer attached to a pseudoconsole".
+        _pty.InterceptInputToTermApp = (ref Span<char> text) =>
+        {
+            if (_disposed)
+                text = [];
+        };
 
         Control = new EasyTerminalControl
         {
@@ -62,6 +70,8 @@ public sealed class TerminalSession : IDisposable
     {
         lock (_gate)
         {
+            if (_disposed)
+                return;
             if (!_started)
             {
                 _pendingInput.Add(text);
@@ -86,6 +96,10 @@ public sealed class TerminalSession : IDisposable
 
     public void Dispose()
     {
+        lock (_gate)
+            _disposed = true;
+        // O controle solta o pseudoconsole antes de ele fechar: mudar o foco depois disso não escreve mais nele.
+        Control.DisconnectConPTYTerm();
         // Fechar a entrada e o pseudoconsole encerra o shell; os filhos dele saem junto pelo Job Object do app.
         try { _pty.CloseStdinToApp(); } catch (Exception ex) when (ex is IOException or InvalidOperationException or ObjectDisposedException) { /* já fechado */ }
         try { _pty.StopExternalTermOnly(); } catch (Exception ex) when (ex is IOException or InvalidOperationException or ObjectDisposedException) { /* já fechado */ }
