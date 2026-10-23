@@ -242,6 +242,7 @@ public sealed partial class MainWindowViewModel : ObservableObject
         copy.Shell = tab.Shell?.Id ?? copy.Shell;
         copy.Cwd = tab.Cwd ?? copy.Cwd;
         var payload = new AdminTabPayload(tab.Group.Name, tab.Group.Color, copy).Encode();
+        _ctx.Audit.Info("aba", $"Aba \"{tab.Name}\" aberta como administrador", $"pasta: {copy.Cwd}");
         if (!Elevation.StartAdminWindow(["--add-tab", payload]))
             _ctx.Notifier.Show("Aba de administrador cancelada", "O Windows não recebeu a confirmação do UAC.");
     }

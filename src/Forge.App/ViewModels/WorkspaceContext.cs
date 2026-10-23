@@ -1,5 +1,6 @@
 using Forge.App.Services;
 using Forge.Core.Actions;
+using Forge.Core.Diagnostics;
 using Forge.Core.Git;
 using Forge.Core.Persistence;
 using Forge.Core.Shells;
@@ -16,4 +17,5 @@ public sealed record WorkspaceContext(
     ExternalApps Apps,
     HistoryStore History,
     Notifier Notifier,
+    AuditLog Audit,
     bool IsAdmin);

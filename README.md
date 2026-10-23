@@ -112,6 +112,7 @@ Tudo fica em `%APPDATA%\Forge`, em JSON legível para editar à mão e versionar
 | `workspaces-admin.json` | As abas da janela de administrador |
 | `settings.json` | Preferências, perfis de shell, tema, atalhos |
 | `history.jsonl` | Histórico unificado: um comando por linha, com data, aba e pasta (até 50 mil linhas) |
+| `logs\forge-AAAA-MM-DD.log` | Log de auditoria, para investigar problemas: shells abertos (linha de comando, pasta), comandos com o código de saída, processos de apoio e todos os erros com a pilha. Um arquivo por dia, guardado por 14 dias; desligável em Configurações › Geral |
 
 A gravação é atômica e mantém uma cópia do último arquivo válido: desligar o PC no meio de uma gravação não corrompe os workspaces. A saída dos terminais nunca é salva.
 

@@ -3,6 +3,7 @@ using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Forge.Core.Actions;
+using Forge.Core.Diagnostics;
 using Forge.Core.Models;
 using Forge.Core.ShellIntegration;
 using Forge.Core.Shells;
@@ -183,6 +184,7 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
         if (_session is null)
             return;
         _session.ShellEventReceived -= OnShellEvent;
+        _ctx.Audit.Info("aba", $"Shell encerrado na aba \"{Name}\"", $"grupo: {Group.Name}");
         _ctx.Sessions.Close(Id);
         _session = null;
         _startupPending = false;
@@ -215,6 +217,7 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or Win32Exception)
         {
+            _ctx.Audit.Warning("git", $"Não foi possível ler o status do git em {Folder}", ex.ToString());
             Git = null;
         }
     }
@@ -244,6 +247,7 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
     {
         if (Shell is not { } shell || branch == Git?.Branch)
             return;
+        _ctx.Audit.Info("git", $"git switch {branch}", $"pasta: {Folder}");
         if (await _ctx.Git.SwitchAsync(Folder, shell, branch) is { } error)
             _ctx.Notifier.Show($"Não foi possível trocar para {branch}", error, isError: true);
         await RefreshGitAsync(fresh: true);
@@ -324,6 +328,7 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
     private void SendStartup()
     {
         _startupPending = false;
+        _ctx.Audit.Info("comando", $"Comando ao abrir na aba \"{Name}\": {Model.Startup}", $"grupo: {Group.Name}\npasta: {Cwd}");
         _session?.Run(Model.Startup!);
         _status.CommandSent();
         State = _status.State;
@@ -358,6 +363,10 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
 
         if (finished is not null)
         {
+            // Comando com código diferente de zero sai como aviso: é o primeiro lugar a olhar quando algo deu errado.
+            _ctx.Audit.Write(finished.ExitCode is null or 0 ? AuditLevel.Info : AuditLevel.Warning, "comando",
+                finished.Command,
+                $"aba: {Name} · grupo: {Group.Name}\npasta: {finished.Cwd ?? Cwd}\ncódigo de saída: {finished.ExitCode?.ToString() ?? "?"}");
             _ctx.History.Append(new HistoryEntry(DateTimeOffset.Now, finished.Command, Id, Name, Group.Name, finished.Cwd ?? Cwd, finished.ExitCode));
             // Um checkout ou commit acabou de acontecer? A branch na barra lateral muda sozinha.
             _ = RefreshGitAsync(fresh: true);

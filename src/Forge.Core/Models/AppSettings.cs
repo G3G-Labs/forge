@@ -37,6 +37,9 @@ public sealed class AppSettings
     /// <summary>Linhas guardadas no history.jsonl.</summary>
     public int HistoryLimit { get; set; } = 50_000;
 
+    /// <summary>Log de auditoria em logs\forge-AAAA-MM-DD.log: shells abertos, comandos, processos e erros. Guarda 14 dias.</summary>
+    public bool AuditLog { get; set; } = true;
+
     /// <summary>Um arquivo de log por aba, com rotação a cada 5 MB. Desligado por padrão.</summary>
     public bool FileLog { get; set; }
 

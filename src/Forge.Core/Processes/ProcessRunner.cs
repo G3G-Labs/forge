@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using Forge.Core.Diagnostics;
 using Forge.Core.Util;
 
 namespace Forge.Core.Processes;
@@ -16,7 +17,8 @@ public interface IProcessRunner
     void Launch(string fileName, IReadOnlyList<string> args, bool hidden = false);
 }
 
-public sealed class ProcessRunner : IProcessRunner
+/// <summary>Com <paramref name="audit"/>, registra o que foi aberto e as falhas ao iniciar (programa não encontrado).</summary>
+public sealed class ProcessRunner(AuditLog? audit = null) : IProcessRunner
 {
     public async Task<ProcessResult> RunAsync(string fileName, IReadOnlyList<string> args, Encoding? encoding = null, CancellationToken ct = default)
     {
@@ -32,7 +34,7 @@ public sealed class ProcessRunner : IProcessRunner
         foreach (var arg in args)
             psi.ArgumentList.Add(arg);
 
-        using var process = Process.Start(psi) ?? throw new InvalidOperationException($"Não foi possível iniciar {fileName}.");
+        using var process = Start(psi, fileName, args);
         var output = process.StandardOutput.ReadToEndAsync(ct);
         var error = process.StandardError.ReadToEndAsync(ct);
         try
@@ -56,6 +58,23 @@ public sealed class ProcessRunner : IProcessRunner
             CreateNoWindow = hidden,
             Arguments = string.Join(' ', args.Select(CommandLine.Quote)),
         };
-        Process.Start(psi)?.Dispose();
+        audit?.Info("processo", "Aberto: " + Display(fileName, args));
+        Start(psi, fileName, args).Dispose();
     }
+
+    private Process Start(ProcessStartInfo psi, string fileName, IReadOnlyList<string> args)
+    {
+        try
+        {
+            return Process.Start(psi) ?? throw new InvalidOperationException($"Não foi possível iniciar {fileName}.");
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            audit?.Warning("processo", "Não foi possível iniciar: " + Display(fileName, args), ex.Message);
+            throw;
+        }
+    }
+
+    public static string Display(string fileName, IReadOnlyList<string> args) =>
+        string.Join(' ', args.Prepend(fileName).Select(CommandLine.Quote));
 }

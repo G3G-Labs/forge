@@ -72,6 +72,13 @@
                             <TextBlock Text="Limite do histórico unificado (linhas em history.jsonl)" VerticalAlignment="Center" />
                         </DockPanel>
                         <ui:ToggleSwitch IsChecked="{Binding FileLog}" Content="Log em arquivo (um por aba, rotação a cada 5 MB)" Margin="0,6" />
+                        <DockPanel Margin="0,6">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource Forge.SecondaryButton}" Height="30" Content="Abrir logs"
+                                    Command="{Binding OpenLogsFolderCommand}" />
+                            <ui:ToggleSwitch IsChecked="{Binding AuditLog}" Content="Log de auditoria: erros, comandos e shells abertos (guarda 14 dias)" />
+                        </DockPanel>
+                        <TextBlock Style="{StaticResource Forge.Hint}"
+                                   Text="{Binding LogsFolder, StringFormat='Um arquivo por dia em {0}. Os comandos digitados entram no log; os valores das variáveis de ambiente não.'}" />
                     </StackPanel>
                     <StackPanel Style="{StaticResource Section}">
                         <TextBlock Text="PRIVACIDADE E DADOS" Style="{StaticResource Forge.SectionLabel}" />

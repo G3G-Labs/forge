@@ -82,6 +82,8 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public string DataFolder => _paths.Root;
 
+    public string LogsFolder => _paths.Logs;
+
     // Geral
 
     public bool StartWithWindows
@@ -120,6 +122,12 @@ public sealed partial class SettingsViewModel : ObservableObject
             Set(s => s.HistoryLimit = Math.Max(1000, value));
             _history.Limit = S.HistoryLimit;
         }
+    }
+
+    public bool AuditLog
+    {
+        get => S.AuditLog;
+        set => Set(s => s.AuditLog = value);
     }
 
     public bool FileLog
@@ -241,7 +249,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException)
         {
-            _notifier.Show("Não foi possível importar", ex.Message, isError: true);
+            _notifier.Error(ex, "Não foi possível importar");
         }
     }
 
@@ -322,6 +330,13 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         Directory.CreateDirectory(_paths.Root);
         Process.Start(new ProcessStartInfo("explorer.exe", $"\"{_paths.Root}\"") { UseShellExecute = true })?.Dispose();
+    }
+
+    [RelayCommand]
+    private void OpenLogsFolder()
+    {
+        Directory.CreateDirectory(_paths.Logs);
+        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{_paths.Logs}\"") { UseShellExecute = true })?.Dispose();
     }
 
     [RelayCommand]

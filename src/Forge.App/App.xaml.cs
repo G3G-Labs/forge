@@ -1,9 +1,12 @@
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Threading;
 using Forge.App.Services;
 using Forge.App.ViewModels;
 using Forge.App.Views;
 using Forge.Core.Actions;
+using Forge.Core.Diagnostics;
 using Forge.Core.Git;
 using Forge.Core.Models;
 using Forge.Core.Persistence;
@@ -20,6 +23,7 @@ public partial class App : Application
     private WorkspaceStore? _workspaces;
     private SessionManager? _sessions;
     private TrayService? _tray;
+    private AuditLog? _audit;
     private MainWindowViewModel? _vm;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -35,7 +39,6 @@ public partial class App : Application
         }
 
         base.OnStartup(e);
-        DispatcherUnhandledException += OnUnhandled;
         // Shells e servidores encerram junto com o app, mesmo se ele cair.
         JobObject.KillChildrenOnExit();
 
@@ -45,22 +48,32 @@ public partial class App : Application
         settings.Load();
         ApplyChromeTheme(settings.Current.Appearance);
 
+        // O log de auditoria vem primeiro: daqui em diante, todo erro tem onde ser gravado.
+        var audit = _audit = new AuditLog(paths.Logs, args.Admin ? "admin" : "main") { Enabled = settings.Current.AuditLog };
+        settings.Changed += (_, _) => audit.Enabled = settings.Current.AuditLog;
+        DispatcherUnhandledException += OnUnhandled;
+        AppDomain.CurrentDomain.UnhandledException += OnFatal;
+        TaskScheduler.UnobservedTaskException += (_, ev) => audit.Error("erro", "Erro em tarefa de fundo", ev.Exception);
+        audit.Info("app", "Forge iniciado", RuntimeInfo());
+        if (!args.Admin)
+            audit.Prune();
+
         _workspaces = new WorkspaceStore(paths.Workspaces(args.Admin));
         _workspaces.Load();
 
         var history = new HistoryStore(paths.History, settings.Current.HistoryLimit);
         if (!args.Admin)
-            TrimHistoryQuietly(history);
+            TrimHistoryQuietly(history, audit);
 
-        var notifier = new Notifier();
-        _workspaces.SaveFailed += (_, ex) => notifier.Show("Não foi possível salvar os workspaces", ex.Message, isError: true);
+        var notifier = new Notifier(audit);
+        _workspaces.SaveFailed += (_, ex) => notifier.Error(ex, "Não foi possível salvar os workspaces");
         if ((_workspaces.LoadProblem ?? settings.LoadProblem) is { } problem)
             notifier.Show("Atenção", problem, isError: true);
 
-        var runner = new ProcessRunner();
+        var runner = new ProcessRunner(audit);
         var shells = new ShellCatalog(new WindowsShellProbe(runner));
-        _sessions = new SessionManager(new LaunchBuilder(paths.Scripts), settings);
-        var ctx = new WorkspaceContext(_workspaces, settings, shells, _sessions, new GitService(runner), new ExternalApps(runner), history, notifier, args.Admin);
+        _sessions = new SessionManager(new LaunchBuilder(paths.Scripts), settings, audit);
+        var ctx = new WorkspaceContext(_workspaces, settings, shells, _sessions, new GitService(runner), new ExternalApps(runner), history, notifier, audit, args.Admin);
 
         _vm = new MainWindowViewModel(ctx);
         _vm.SettingsRequested += (_, _) => ShowSettings(settings, shells, history, notifier, paths);
@@ -131,7 +144,7 @@ public partial class App : Application
             dictionaries[TokensIndex] = new ResourceDictionary { Source = source };
     }
 
-    private static void TrimHistoryQuietly(HistoryStore history)
+    private static void TrimHistoryQuietly(HistoryStore history, AuditLog audit)
     {
         try
         {
@@ -140,15 +153,30 @@ public partial class App : Application
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Fica para a próxima abertura; a busca funciona com o arquivo como está.
+            audit.Warning("histórico", "Não foi possível aparar o history.jsonl", ex.Message);
         }
+    }
+
+    /// <summary>Versão do Forge, do Windows e do .NET: a primeira coisa a saber ao ler um log de outra máquina.</summary>
+    private static string RuntimeInfo()
+    {
+        var version = typeof(App).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0];
+        return $"versão: {version}\nWindows: {Environment.OSVersion.Version} ({RuntimeInformation.OSArchitecture})\n.NET: {RuntimeInformation.FrameworkDescription}";
     }
 
     private void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         // Um erro inesperado vira aviso na janela em vez de derrubar o app (e todos os terminais com ele).
-        _vm?.Notifier.Error(e.Exception);
+        if (_vm is not null)
+            _vm.Notifier.Error(e.Exception);
+        else
+            _audit?.Error("erro", "Erro inesperado", e.Exception);
         e.Handled = true;
     }
+
+    // Erro fora da thread da interface: o processo vai cair. Fica o registro do porquê.
+    private void OnFatal(object sender, UnhandledExceptionEventArgs e) =>
+        _audit?.Error("falha", "Erro fatal: o Forge vai fechar", e.ExceptionObject.ToString() ?? "");
 
     private void ExitApp(MainWindow window)
     {
@@ -159,6 +187,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _audit?.Info("app", "Forge encerrado");
         _tray?.Dispose();
         _sessions?.Dispose();
         // Grava o que estiver pendente: fechar o app é um dos dois momentos de salvar (o outro é 500 ms após mudar).
