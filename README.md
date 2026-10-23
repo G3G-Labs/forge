@@ -28,7 +28,7 @@ Terminal leve para Windows em que abas e grupos configurados uma vez continuam l
 | **Abas** | O "+" do grupo escolhe o tipo (PowerShell, CMD, Git Bash, cada distro WSL); `Ctrl+T` abre o shell padrão. Fechar, duplicar, arrastar, renomear com duplo clique ou `F2`, cor própria. Cada aba volta na última pasta em que estava, ou numa pasta fixa. |
 | **Grupos** | Só organizam, como no Warp: nome e cor. Recolher, e arrastar abas entre grupos sem parar o processo. Na barra recolhida, cada grupo mostra as abas dele. |
 | **Configuração da aba** | Nome e cor com prévia, shell (o do grupo ou outro), pasta, "comando ao abrir" opcional (ex.: `bun dev`, `yarn dev`), variáveis de ambiente e "abrir junto com o app", num painel no lugar. |
-| **Persistência** | Tudo salva sozinho, sem botão. Ao reabrir, cada aba volta com nome, tipo e a última pasta em que estava; só as marcadas abrem junto com o app. |
+| **Persistência** | Tudo salva sozinho, sem botão. Ao reabrir, cada aba volta com nome, tipo e a última pasta em que estava; só as marcadas abrem junto com o app. Fechar a janela deixa o Forge na bandeja, com os terminais rodando; "Sair" no ícone encerra tudo. |
 | **Auxílios** | Autocomplete que ignora maiúsculas no bash e zsh (`cd doc` + Tab → `Documentos/`), histórico do shell gravado a cada comando e histórico unificado de todas as abas, pesquisável com `Ctrl+R`. |
 | **Git** | Branch na aba e na barra de status, alterações pendentes e commits à frente e atrás. Muda sozinho depois de um `git checkout`. |
 | **Ações rápidas** | Abrir a pasta no VS Code (inclusive conectado ao WSL) e no Explorer; copiar caminho; reiniciar o shell; abrir como administrador. O Forge não tem botão de iniciar ou parar projeto: ele não adivinha se o projeto usa npm, yarn ou bun. |

@@ -19,6 +19,7 @@ public partial class App : Application
     private SingleInstance? _single;
     private WorkspaceStore? _workspaces;
     private SessionManager? _sessions;
+    private TrayService? _tray;
     private MainWindowViewModel? _vm;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -67,6 +68,17 @@ public partial class App : Application
 
         var window = new MainWindow(_vm, settings);
         MainWindow = window;
+
+        // Bandeja (só na janela comum): fechar a janela esconde; "Sair" no ícone encerra o Forge e os terminais.
+        if (!args.Admin)
+        {
+            _tray = new TrayService();
+            _tray.ShowWindowRequested += (_, _) => window.BringToFront();
+            _tray.ExitRequested += (_, _) => ExitApp(window);
+            _tray.Initialize();
+            window.HiddenToTray += (_, _) => _tray.NotifyHidden();
+        }
+
         if (args.Minimized)
             window.WindowState = WindowState.Minimized;
         window.Show();
@@ -138,8 +150,16 @@ public partial class App : Application
         e.Handled = true;
     }
 
+    private void ExitApp(MainWindow window)
+    {
+        window.AllowClose = true;
+        window.Close();
+        Shutdown();
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
+        _tray?.Dispose();
         _sessions?.Dispose();
         // Grava o que estiver pendente: fechar o app é um dos dois momentos de salvar (o outro é 500 ms após mudar).
         _workspaces?.Dispose();

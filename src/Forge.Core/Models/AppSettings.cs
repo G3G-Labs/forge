@@ -26,6 +26,9 @@ public sealed class AppSettings
 
     public bool StartWithWindows { get; set; }
 
+    /// <summary>Fechar a janela só a esconde na bandeja: os terminais continuam rodando. Sair pelo ícone encerra tudo.</summary>
+    public bool CloseToTray { get; set; } = true;
+
     /// <summary>Reabrir com o mesmo tamanho, posição e aba ativa.</summary>
     public bool RestoreWindow { get; set; } = true;
 

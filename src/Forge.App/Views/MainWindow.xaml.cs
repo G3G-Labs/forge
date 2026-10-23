@@ -13,10 +13,12 @@ namespace Forge.App.Views;
 public partial class MainWindow : Window
 {
     private readonly ShortcutMap _shortcuts;
+    private readonly SettingsStore _settings;
 
     public MainWindow(MainWindowViewModel vm, SettingsStore settings)
     {
         InitializeComponent();
+        _settings = settings;
         ViewModel = vm;
         DataContext = vm;
 
@@ -43,11 +45,18 @@ public partial class MainWindow : Window
 
     public MainWindowViewModel ViewModel { get; }
 
+    /// <summary>Fechar de verdade (Sair pelo ícone da bandeja), em vez de só esconder a janela.</summary>
+    public bool AllowClose { get; set; }
+
+    /// <summary>A janela foi para a bandeja: os terminais continuam rodando.</summary>
+    public event EventHandler? HiddenToTray;
+
     public void BringToFront()
     {
+        if (!IsVisible)
+            Show();
         if (WindowState == WindowState.Minimized)
             WindowState = WindowState.Normal;
-        Show();
         Activate();
     }
 
@@ -87,7 +96,19 @@ public partial class MainWindow : Window
             Height = bounds.Height,
             Maximized = WindowState == WindowState.Maximized,
         });
+
+        // Fechar para a bandeja: a janela some, os shells e o que roda neles continuam. A de administrador fecha mesmo.
+        if (!AllowClose && _settings.Current.CloseToTray && !ViewModel.IsAdmin)
+        {
+            e.Cancel = true;
+            Hide();
+            HiddenToTray?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
         _shortcuts.Dispose();
+        if (!AllowClose)
+            Application.Current.Shutdown();
     }
 
     // Maximizada com WindowChrome, a janela passa um pouco da tela: a borda compensa.

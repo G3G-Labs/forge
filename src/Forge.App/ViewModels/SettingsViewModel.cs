@@ -94,6 +94,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
     }
 
+    public bool CloseToTray
+    {
+        get => S.CloseToTray;
+        set => Set(s => s.CloseToTray = value);
+    }
+
     public bool RestoreWindow
     {
         get => S.RestoreWindow;

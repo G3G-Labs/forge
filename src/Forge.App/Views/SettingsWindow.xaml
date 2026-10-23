@@ -52,6 +52,8 @@
                     <StackPanel Style="{StaticResource Section}">
                         <TextBlock Text="INICIALIZAÇÃO" Style="{StaticResource Forge.SectionLabel}" />
                         <ui:ToggleSwitch IsChecked="{Binding StartWithWindows}" Content="Iniciar com o Windows" Margin="0,6" />
+                        <ui:ToggleSwitch IsChecked="{Binding CloseToTray}" Margin="0,6"
+                                         Content="Fechar a janela mantém o Forge na bandeja, com os terminais rodando" />
                         <ui:ToggleSwitch IsChecked="{Binding RestoreWindow}" Content="Restaurar tamanho, posição e aba ativa" Margin="0,6" />
                     </StackPanel>
                     <StackPanel Style="{StaticResource Section}">
