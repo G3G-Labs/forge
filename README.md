@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/status-pr%C3%A9--alfa-lightgrey" alt="Status: pré-alfa">
 </p>
 
-Terminal leve para Windows em que abas e grupos configurados uma vez continuam lá depois que o PC é desligado e ligado de novo. Cada grupo é um projeto, com a pasta e o ambiente dele (Windows ou WSL): ao abrir, os terminais já estão lá, organizados.
+Terminal leve para Windows em que abas e grupos configurados uma vez continuam lá depois que o PC é desligado e ligado de novo. Como no Warp, os grupos organizam as abas por projeto (Rentalz → Front-end, Back-end), e cada aba tem o próprio tipo: PowerShell, CMD, Git Bash ou WSL.
 
 **Por quê?** Terminais como o Warp e o Windows Terminal agrupam abas e abrem PowerShell, CMD, Git Bash e WSL, mas, depois de reiniciar o PC, a organização se perde: projeto por projeto, navegar até a pasta, renomear as abas, reagrupar e rodar `npm run dev` em cada uma. O Forge faz só o essencial (abas, grupos, cores, Git, ações rápidas, autocomplete e histórico) e trata a organização como algo permanente.
 
@@ -25,10 +25,10 @@ Terminal leve para Windows em que abas e grupos configurados uma vez continuam l
 | Recurso | O que entrega |
 | --- | --- |
 | **Shells** | PowerShell 7 e 5.1, CMD, Git Bash e cada distro WSL, detectados sozinhos. Perfis próprios (executável + argumentos). |
-| **Abas** | Criar com um clique ("+" ou `Ctrl+T`), já na pasta e no ambiente do grupo; fechar, duplicar, arrastar, renomear com duplo clique ou `F2`, cor própria. |
-| **Grupos (workspaces)** | Um por projeto: nome, cor, a pasta do projeto e o ambiente (Windows, com PowerShell, CMD ou Git Bash, ou WSL, com a distro), escolhidos ao criar e editáveis depois. Recolher, e arrastar abas entre grupos sem parar o processo. |
+| **Abas** | O "+" do grupo escolhe o tipo (PowerShell, CMD, Git Bash, cada distro WSL); `Ctrl+T` abre o shell padrão. Fechar, duplicar, arrastar, renomear com duplo clique ou `F2`, cor própria. Cada aba volta na última pasta em que estava, ou numa pasta fixa. |
+| **Grupos** | Só organizam, como no Warp: nome e cor. Recolher, e arrastar abas entre grupos sem parar o processo. Na barra recolhida, cada grupo mostra as abas dele. |
 | **Configuração da aba** | Nome e cor com prévia, shell (o do grupo ou outro), pasta, "comando ao abrir" opcional (ex.: `bun dev`, `yarn dev`), variáveis de ambiente e "abrir junto com o app", num painel no lugar. |
-| **Persistência** | Tudo salva sozinho, sem botão. Ao reabrir, cada aba volta com nome, pasta e shell; só os comandos marcados iniciam. |
+| **Persistência** | Tudo salva sozinho, sem botão. Ao reabrir, cada aba volta com nome, tipo e a última pasta em que estava; só as marcadas abrem junto com o app. |
 | **Auxílios** | Autocomplete que ignora maiúsculas no bash e zsh (`cd doc` + Tab → `Documentos/`), histórico do shell gravado a cada comando e histórico unificado de todas as abas, pesquisável com `Ctrl+R`. |
 | **Git** | Branch na aba e na barra de status, alterações pendentes e commits à frente e atrás. Muda sozinho depois de um `git checkout`. |
 | **Ações rápidas** | Abrir a pasta no VS Code (inclusive conectado ao WSL) e no Explorer; copiar caminho; reiniciar o shell; abrir como administrador. O Forge não tem botão de iniciar ou parar projeto: ele não adivinha se o projeto usa npm, yarn ou bun. |
@@ -134,7 +134,8 @@ A dependência é em um só sentido: o App usa o Core e o Terminal; o Terminal u
 ### Decisões técnicas
 
 - **Terminal nativo do Windows Terminal em vez de um emulador próprio.** Corta o maior item de engenharia do escopo (parser VT e renderização) e o risco de quebrar vim, htop e as barras do npm. O projeto `Forge.Terminal` isola o controle: dá para trocá-lo por um motor próprio sem mexer nas telas.
-- **Grupo = projeto.** O grupo guarda a pasta e o ambiente; as abas seguem o grupo, a menos que você escolha outro shell ou outra pasta para uma aba. Mudar o ambiente do grupo muda todas as abas que o seguem.
+- **Grupos como no Warp.** O grupo só organiza (nome e cor); tipo e pasta são de cada aba. A aba volta na última pasta visitada; "Fixar a pasta atual" a prende numa pasta.
+- **Máscara no prompt.** Em Configurações › Terminal, um nome único (ex.: `gabriel@forge`) substitui usuário e máquina no prompt do PowerShell, bash e zsh.
 - **Sem iniciar ou parar projeto.** O "comando ao abrir" é opcional e escrito por você; o app o digita no shell quando ele abre, como se você digitasse, e `Ctrl+C` para o processo sem fechar a aba.
 - **Nada é gravado nos seus arquivos.** Pasta, variáveis, autocomplete, histórico e integração de shell vêm de um script que o app gera para cada aba e passa ao shell (`--rcfile`, `ZDOTDIR`, `-Command`). Seu `.bashrc`, `.zshrc` e perfil do PowerShell continuam carregando normalmente.
 - **Abertura rápida com muitas abas.** Todas aparecem na hora, mas só a aba visível e as marcadas para iniciar sozinhas ganham shell; as outras só quando você clica nelas.

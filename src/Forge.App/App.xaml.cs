@@ -99,7 +99,9 @@ public partial class App : Application
 
     private void ShowSettings(SettingsStore settings, ShellCatalog shells, HistoryStore history, Notifier notifier, AppPaths paths)
     {
-        var window = new SettingsWindow(new SettingsViewModel(settings, shells, history, notifier, paths)) { Owner = MainWindow };
+        var vm = new SettingsViewModel(settings, shells, history, notifier, paths);
+        vm.RestartShellsRequested += (_, _) => _vm?.RestartAllShells();
+        var window = new SettingsWindow(vm) { Owner = MainWindow };
         window.ShowDialog();
     }
 

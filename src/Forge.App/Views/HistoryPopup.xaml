@@ -26,9 +26,8 @@
                     <ToggleButton IsChecked="{Binding OnlyThisFolder}" Content="Só esta pasta" Padding="10,4" FontSize="12" />
                 </Border>
                 <ui:SymbolIcon DockPanel.Dock="Left" Symbol="History24" FontSize="18" Foreground="{DynamicResource Forge.TextSecondaryBrush}" />
-                <TextBox x:Name="SearchBox" Margin="10,0" BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center"
-                         FontFamily="{DynamicResource Forge.FontMono}" FontSize="15" Foreground="{DynamicResource Forge.TextBrush}"
-                         CaretBrush="{DynamicResource Forge.TextBrush}" Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}"
+                <TextBox x:Name="SearchBox" Margin="10,0" Style="{StaticResource Forge.BareTextBox}"
+                         FontFamily="{DynamicResource Forge.FontMono}" FontSize="15" Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}"
                          AutomationProperties.Name="Buscar comando" />
             </DockPanel>
             <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource Forge.LineBrush}" />
@@ -42,10 +41,11 @@
             </Border>
 
             <ListBox ItemsSource="{Binding Results}" SelectedItem="{Binding Selected}" MaxHeight="420" Margin="6"
-                     Background="Transparent" BorderThickness="0" MouseDoubleClick="OnResultDoubleClick">
+                     Background="Transparent" BorderThickness="0" MouseDoubleClick="OnResultDoubleClick"
+                     ItemContainerStyle="{StaticResource Forge.ListItem}" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                 <ListBox.ItemTemplate>
                     <DataTemplate DataType="{x:Type vm:HistoryItem}">
-                        <StackPanel Margin="6,4">
+                        <StackPanel>
                             <TextBlock Text="{Binding Command}" FontFamily="{DynamicResource Forge.FontMono}" FontSize="13" TextTrimming="CharacterEllipsis" />
                             <DockPanel Margin="0,3,0,0" TextElement.FontSize="11.5" TextElement.Foreground="{DynamicResource Forge.TextMutedBrush}">
                                 <TextBlock DockPanel.Dock="Right" Text="{Binding When}" />

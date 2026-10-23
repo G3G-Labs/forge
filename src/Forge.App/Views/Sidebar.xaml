@@ -10,21 +10,15 @@
     d:DataContext="{d:DesignInstance Type=vm:MainWindowViewModel}">
 
     <UserControl.Resources>
-        <!-- Indicador de estado: forma + cor (círculo rodando, anel parada, losango erro). -->
+        <!-- Indicador de estado: círculo verde com um comando rodando; anel com o shell parado; anel tracejado sem shell ainda. -->
         <DataTemplate x:Key="StateDot" DataType="{x:Type vm:TabViewModel}">
             <Grid Width="10" Height="10">
                 <Ellipse Width="8" Height="8" Fill="{DynamicResource Forge.RunningBrush}"
                          Visibility="{Binding State, Converter={StaticResource EqualsToVisibility}, ConverterParameter=Running}" />
                 <Ellipse Width="8" Height="8" StrokeThickness="1.5" Stroke="{DynamicResource Forge.StoppedBrush}"
-                         Visibility="{Binding State, Converter={StaticResource EqualsToVisibility}, ConverterParameter='Idle,Exited'}" />
+                         Visibility="{Binding State, Converter={StaticResource EqualsToVisibility}, ConverterParameter='Idle,Exited,Failed'}" />
                 <Ellipse Width="8" Height="8" StrokeThickness="1.5" StrokeDashArray="1.5 1.5" Stroke="{DynamicResource Forge.StoppedBrush}"
                          Visibility="{Binding State, Converter={StaticResource EqualsToVisibility}, ConverterParameter=NotStarted}" />
-                <Rectangle Width="7" Height="7" Fill="{DynamicResource Forge.ErrorBrush}" RenderTransformOrigin="0.5,0.5"
-                           Visibility="{Binding State, Converter={StaticResource EqualsToVisibility}, ConverterParameter=Failed}">
-                    <Rectangle.RenderTransform>
-                        <RotateTransform Angle="45" />
-                    </Rectangle.RenderTransform>
-                </Rectangle>
             </Grid>
         </DataTemplate>
 
@@ -36,6 +30,7 @@
                       Visibility="{Binding IsElevated, Converter={StaticResource InverseBoolToVisibility}}" />
             <MenuItem Header="Renomear" InputGestureText="F2" Command="{Binding BeginRenameCommand}" />
             <MenuItem Header="Configurar aba…" Command="{Binding ConfigureCommand}" />
+            <MenuItem Header="Fixar a pasta atual" Command="{Binding PinFolderCommand}" />
             <Separator />
             <MenuItem Header="Cor da aba">
                 <MenuItem Header="Do grupo" Command="{Binding SetColorCommand}" CommandParameter="{x:Null}" />
@@ -51,7 +46,7 @@
         </ContextMenu>
 
         <ContextMenu x:Key="GroupMenu" x:Shared="False" DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-            <MenuItem Header="Nova aba" InputGestureText="Ctrl+T" Command="{Binding NewTabCommand}" CommandParameter="{x:Null}" />
+            <MenuItem Header="Nova aba (shell padrão)" InputGestureText="Ctrl+T" Command="{Binding NewTabCommand}" CommandParameter="{x:Null}" />
             <MenuItem Header="Configurar grupo…" Command="{Binding ConfigureCommand}" />
             <MenuItem Header="Renomear" Command="{Binding BeginRenameCommand}" />
             <MenuItem Header="Cor do grupo">
@@ -107,7 +102,7 @@
         <!-- Um grupo: cabeçalho com cor, nome e, ao passar o mouse, Iniciar/Parar grupo e "+". -->
         <DataTemplate x:Key="GroupBlock" DataType="{x:Type vm:GroupViewModel}">
             <StackPanel Margin="0,0,0,4">
-                <Grid x:Name="Head" Height="32" Margin="6,0" Background="Transparent" ContextMenu="{StaticResource GroupMenu}" ToolTip="{Binding Details}"
+                <Grid x:Name="Head" Height="32" Margin="6,0" Background="Transparent" ContextMenu="{StaticResource GroupMenu}"
                       MouseLeftButtonDown="OnGroupHeadClick"
                       AllowDrop="True" Drop="OnGroupDrop">
                     <Grid.ColumnDefinitions>
@@ -144,11 +139,11 @@
                     <StackPanel Grid.Column="3" Orientation="Horizontal"
                                 Visibility="{Binding IsMouseOver, ElementName=Head, Converter={StaticResource BoolToVisibility}}">
                         <Button Style="{StaticResource Forge.SmallIconButton}" Command="{Binding ConfigureCommand}"
-                                ToolTip="Configurar grupo: nome, cor, pasta e ambiente" AutomationProperties.Name="Configurar grupo">
+                                ToolTip="Configurar grupo: nome e cor" AutomationProperties.Name="Configurar grupo">
                             <ui:SymbolIcon Symbol="Settings24" FontSize="12" />
                         </Button>
-                        <Button Style="{StaticResource Forge.SmallIconButton}" Command="{Binding NewTabCommand}" CommandParameter="{x:Null}"
-                                ToolTip="Nova aba no ambiente e na pasta do grupo (Ctrl+T)" AutomationProperties.Name="Nova aba no grupo">
+                        <Button Style="{StaticResource Forge.SmallIconButton}" Click="OnNewTabClick"
+                                ToolTip="Nova aba: escolher PowerShell, CMD, Git Bash ou WSL" AutomationProperties.Name="Nova aba no grupo">
                             <ui:SymbolIcon Symbol="Add24" FontSize="13" />
                         </Button>
                     </StackPanel>
@@ -156,7 +151,18 @@
 
                 <Border Margin="20,2,0,0" BorderThickness="1,0,0,0" BorderBrush="{Binding Color, Converter={StaticResource HexToGuideBrush}}"
                         Visibility="{Binding IsCollapsed, Converter={StaticResource InverseBoolToVisibility}}">
-                    <ItemsControl ItemsSource="{Binding Tabs}" ItemTemplate="{StaticResource TabRow}" />
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding Tabs}" ItemTemplate="{StaticResource TabRow}" />
+                        <!-- Grupo sem abas: o "+" já fica à mão, sem precisar passar o mouse no cabeçalho. -->
+                        <Button Margin="6,0,6,2" Style="{StaticResource Forge.RowButton}" Click="OnNewTabClick"
+                                Foreground="{DynamicResource Forge.TextMutedBrush}"
+                                Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="Add24" FontSize="12" />
+                                <TextBlock Text="Nova aba" Margin="8,0,0,0" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
                 </Border>
             </StackPanel>
         </DataTemplate>
@@ -200,27 +206,54 @@
             </ScrollViewer>
         </DockPanel>
 
-        <!-- Barra recolhida: um quadrado por grupo, com a cor dele -->
+        <!-- Barra recolhida (52 px): cada grupo vira um rótulo com a cor dele, e as abas aparecem embaixo, com o estado. -->
         <DockPanel Width="52" Background="{DynamicResource Forge.ChromeBrush}"
                    Visibility="{Binding SidebarCollapsed, Converter={StaticResource BoolToVisibility}}">
             <Border DockPanel.Dock="Right" Width="1" Background="{DynamicResource Forge.LineBrush}" />
-            <StackPanel>
-                <Button Style="{StaticResource Forge.IconButton}" Margin="0,6,0,8" Command="{Binding ToggleSidebarCommand}"
-                        ToolTip="Expandir barra lateral (Ctrl+B)" AutomationProperties.Name="Expandir barra lateral">
-                    <ui:SymbolIcon Symbol="PanelLeft24" FontSize="15" />
-                </Button>
+            <Button DockPanel.Dock="Top" Style="{StaticResource Forge.IconButton}" Margin="0,6,0,6" Command="{Binding ToggleSidebarCommand}"
+                    ToolTip="Expandir barra lateral (Ctrl+B)" AutomationProperties.Name="Expandir barra lateral">
+                <ui:SymbolIcon Symbol="PanelLeft24" FontSize="15" />
+            </Button>
+            <ScrollViewer VerticalScrollBarVisibility="Hidden">
                 <ItemsControl ItemsSource="{Binding Groups}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:GroupViewModel}">
-                            <Button Width="36" Height="36" Margin="0,0,0,6" Click="OnRailGroupClick" ToolTip="{Binding Name}"
-                                    Style="{StaticResource Forge.IconButton}" Background="{Binding Color, Converter={StaticResource HexToGuideBrush}}">
-                                <TextBlock Text="{Binding Initials}" FontSize="12" FontWeight="Bold"
-                                           Foreground="{DynamicResource Forge.TextBrush}" />
-                            </Button>
+                            <StackPanel Margin="0,0,0,8" HorizontalAlignment="Center">
+                                <Border Width="36" Height="20" CornerRadius="5" ToolTip="{Binding Name}"
+                                        Background="{Binding Color, Converter={StaticResource HexToGuideBrush}}">
+                                    <TextBlock Text="{Binding Initials}" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource Forge.TextBrush}" />
+                                </Border>
+                                <ItemsControl ItemsSource="{Binding Tabs}" Margin="0,4,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:TabViewModel}">
+                                            <Button Width="36" Height="30" Margin="0,0,0,2" ToolTip="{Binding Name}" AutomationProperties.Name="{Binding Name}"
+                                                    Command="{Binding DataContext.SelectCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" ContextMenu="{StaticResource TabMenu}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource Forge.IconButton}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter Property="Background" Value="{DynamicResource Forge.SelectedBrush}" />
+                                                                <Setter Property="Foreground" Value="{DynamicResource Forge.TextBrush}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                                <Grid>
+                                                    <TextBlock Text="{Binding Initials}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    <ContentPresenter Content="{Binding}" ContentTemplate="{StaticResource StateDot}"
+                                                                      HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,2,1,0" />
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-            </StackPanel>
+            </ScrollViewer>
         </DockPanel>
     </Grid>
 </UserControl>

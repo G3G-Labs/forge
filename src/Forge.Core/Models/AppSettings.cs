@@ -1,6 +1,6 @@
 namespace Forge.Core.Models;
 
-/// <summary>Para onde cada aba volta ao reabrir o app (decisão em aberto no escopo; padrão: pasta inicial).</summary>
+/// <summary>Para onde cada aba volta ao reabrir o app. Padrão: a última pasta visitada, como no Warp.</summary>
 public enum FolderOnRestore
 {
     StartFolder,
@@ -17,7 +17,9 @@ public enum CursorShape
 /// <summary>Preferências globais em %APPDATA%\Forge\settings.json, separadas dos workspaces.</summary>
 public sealed class AppSettings
 {
-    public int Version { get; set; } = 1;
+    public const int CurrentVersion = 2;
+
+    public int Version { get; set; } = CurrentVersion;
 
     /// <summary>Shell da aba nova (Ctrl+T) quando o usuário não escolhe outro.</summary>
     public string DefaultShell { get; set; } = ShellIds.PowerShell;
@@ -27,7 +29,7 @@ public sealed class AppSettings
     /// <summary>Reabrir com o mesmo tamanho, posição e aba ativa.</summary>
     public bool RestoreWindow { get; set; } = true;
 
-    public FolderOnRestore FolderOnRestore { get; set; } = FolderOnRestore.StartFolder;
+    public FolderOnRestore FolderOnRestore { get; set; } = FolderOnRestore.LastVisited;
 
     /// <summary>Linhas guardadas no history.jsonl.</summary>
     public int HistoryLimit { get; set; } = 50_000;
@@ -78,9 +80,11 @@ public sealed class IdentitySettings
 
     public bool ShowInHeader { get; set; } = true;
 
-    public bool InjectInPowerShellPrompt { get; set; }
-
-    public bool InjectInBashPrompt { get; set; }
+    /// <summary>
+    /// Máscara no prompt: o PowerShell, o bash e o zsh mostram "usuário@máquina" (os nomes acima) no lugar do prompt
+    /// deles, com a pasta atual. Vale quando o shell da aba abre.
+    /// </summary>
+    public bool MaskPrompt { get; set; }
 
     public string Display(string fallbackUser, string fallbackMachine) =>
         $"{(string.IsNullOrWhiteSpace(UserName) ? fallbackUser : UserName)}@{(string.IsNullOrWhiteSpace(MachineName) ? fallbackMachine : MachineName)}";

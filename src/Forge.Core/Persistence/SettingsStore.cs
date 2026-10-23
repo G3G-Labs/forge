@@ -32,11 +32,14 @@ public sealed class SettingsStore(string path)
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>Converte campos de versões anteriores. Nada a migrar ainda: é o lugar certo quando houver.</summary>
+    /// <summary>Converte campos de versões anteriores.</summary>
     internal static void Migrate(AppSettings settings)
     {
         if (settings.HistoryLimit <= 0)
             settings.HistoryLimit = 50_000;
-        settings.Version = 1;
+        // Versão 2: as abas passam a voltar na última pasta visitada, como no Warp.
+        if (settings.Version < 2)
+            settings.FolderOnRestore = FolderOnRestore.LastVisited;
+        settings.Version = AppSettings.CurrentVersion;
     }
 }

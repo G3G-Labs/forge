@@ -115,7 +115,7 @@ Forge/
 │       ├── ViewModels/
 │       │   ├── MainWindowViewModel.cs  árvore, seleção, restauração, ações com atalho
 │       │   ├── GroupViewModel.cs       grupo: nome, cor, pasta, ambiente, recolher
-│       │   ├── GroupEditorViewModel.cs criar e configurar grupo (pasta + Windows ou WSL)
+│       │   ├── GroupEditorViewModel.cs criar e configurar grupo (nome e cor)
 │       │   ├── TabViewModel.cs         aba: shell, estado, Git, iniciar/reiniciar/parar, VS Code…
 │       │   ├── TabConfigViewModel.cs   "Configurar aba" no lugar
 │       │   ├── HistorySearchViewModel.cs  Ctrl+R
@@ -142,7 +142,7 @@ Forge/
 |---|---|
 | Detecção de shells e perfis | `ShellCatalog`, `WindowsShellProbe`, `WslListParser`; perfis em `AppSettings.CustomProfiles` |
 | Abas (criar, fechar, duplicar, arrastar, renomear, cor) | `WorkspaceEditor`, `MainWindowViewModel`, `Sidebar.xaml.cs` |
-| Grupos (nome, cor, pasta, ambiente Windows ou WSL, recolher, arrastar abas entre eles) | `GroupViewModel`, `GroupEditorViewModel`, `GroupDialog.xaml`, `WorkspaceEditor` |
+| Grupos (nome, cor, recolher, arrastar abas entre eles), como no Warp | `GroupViewModel`, `GroupEditorViewModel`, `GroupDialog.xaml`, `WorkspaceEditor` |
 | Configuração da aba | `TabConfigViewModel`, `TabConfigPanel.xaml`, `LaunchBuilder` |
 | Persistência e restauração | `JsonFile`, `WorkspaceStore`, `RestorePlanner`, `MainWindowViewModel.RestoreAsync` |
 | Autocomplete sem maiúsculas, histórico garantido, Ctrl+R | `ShellScripts`, `OscParser`, `TabStatus`, `HistoryStore`, `HistorySearchViewModel` |
@@ -189,9 +189,10 @@ parar projeto. Ele não vai na linha de comando: o app o **digita** no shell qua
 integração, quando o processo responde), toda vez que o shell da aba abre. Assim roda como se o usuário digitasse, vai
 para o histórico do próprio shell, e Ctrl+C para o processo sem fechar a aba.
 
-**Grupo = projeto.** `WorkspaceGroup` guarda `Folder` e `Shell` (o ambiente: `pwsh`, `cmd`, `wsl:Ubuntu`…). Uma aba
-com `Shell` e `Cwd` nulos segue o grupo (`WorkspaceEditor.ShellOf`, `LaunchBuilder.ResolveCwd`); mudar o grupo muda
-todas as abas que o seguem, no próximo shell delas.
+**Grupos como no Warp.** `WorkspaceGroup` só organiza (nome, cor, ordem, recolhido). Cada `WorkspaceTab` tem o
+seu `Shell` (tipo) e, opcional, uma `Cwd` fixa; sem ela, a aba volta na `LastCwd` (última pasta informada pelo shell,
+OSC 7) ou na home. Arquivos da versão em que o grupo era um ambiente são migrados no `WorkspaceStore.Normalize`: o
+shell e a pasta do grupo passam para as abas.
 
 ### Scripts e integração de shell
 

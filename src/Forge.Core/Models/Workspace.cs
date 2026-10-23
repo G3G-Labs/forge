@@ -27,13 +27,12 @@ public sealed class WorkspaceGroup
 
     public bool Collapsed { get; set; }
 
-    /// <summary>Pasta do projeto. Toda aba do grupo abre nela, a menos que a aba tenha uma pasta própria.</summary>
+    // O grupo só organiza abas (nome, cor, ordem), como os grupos de abas do Warp. Shell e pasta são de cada aba.
+
+    /// <summary>Formato antigo (grupo como ambiente). Só é lido para migrar para as abas; nunca é gravado.</summary>
     public string? Folder { get; set; }
 
-    /// <summary>
-    /// Ambiente do grupo: o perfil de shell que as abas usam por padrão ("pwsh" no Windows, "wsl:Ubuntu" no WSL).
-    /// null usa o shell padrão das configurações.
-    /// </summary>
+    /// <summary>Formato antigo (grupo como ambiente). Só é lido para migrar para as abas; nunca é gravado.</summary>
     public string? Shell { get; set; }
 
     public List<WorkspaceTab> Tabs { get; set; } = [];
@@ -48,13 +47,10 @@ public sealed class WorkspaceTab
     /// <summary>Cor própria da aba; null usa a do grupo.</summary>
     public string? Color { get; set; }
 
-    /// <summary>
-    /// Perfil de shell próprio da aba ("pwsh", "cmd", "gitbash", "wsl:Ubuntu", "custom:…"). null segue o ambiente do
-    /// grupo: mudar o ambiente do grupo muda todas as abas que não escolheram outro.
-    /// </summary>
+    /// <summary>Tipo da aba: "pwsh", "powershell", "cmd", "gitbash", "wsl:Ubuntu" ou "custom:…". null usa o padrão.</summary>
     public string? Shell { get; set; }
 
-    /// <summary>Pasta própria da aba, no formato do shell (C:\dev\web, /home/dev/api ou ~/api). null usa a do grupo.</summary>
+    /// <summary>Pasta fixa da aba, no formato do shell (C:\dev\web, /home/dev/api ou ~/api). null abre na home.</summary>
     public string? Cwd { get; set; }
 
     /// <summary>
@@ -69,7 +65,7 @@ public sealed class WorkspaceTab
     /// <summary>Variáveis de ambiente opcionais, aplicadas pelo script que o app gera para a aba.</summary>
     public Dictionary<string, string> Env { get; set; } = new();
 
-    /// <summary>Última pasta visitada. Só é usada com "Ao reabrir, voltar para a última pasta visitada" ligado.</summary>
+    /// <summary>Última pasta visitada (OSC 7). Com "Ao reabrir, voltar para a última pasta visitada" (o padrão), a aba volta nela.</summary>
     public string? LastCwd { get; set; }
 
     public WorkspaceTab CloneWithNewId() => new()

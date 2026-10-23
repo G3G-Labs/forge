@@ -23,7 +23,7 @@ public sealed partial class EnvVarViewModel(TabConfigViewModel owner) : Observab
     private void Remove() => owner.RemoveEnv(this);
 }
 
-/// <summary>Uma opção de shell da aba: null segue o ambiente do grupo.</summary>
+/// <summary>Um tipo de aba na lista do painel ("Windows · PowerShell 7", "WSL · Debian").</summary>
 public sealed record ShellChoice(string? Id, string Label);
 
 /// <summary>
@@ -87,20 +87,17 @@ public sealed partial class TabConfigViewModel : ObservableObject
 
     public bool UsesGroupColor => Model.Color is null;
 
-    /// <summary>O que aparece no campo de pasta vazio: a pasta que a aba herda do grupo.</summary>
-    public string FolderPlaceholder => _tab.Group.Folder is { } folder ? $"Do grupo: {folder}" : "Sem pasta no grupo: abre na pasta inicial do shell";
+    /// <summary>O que aparece no campo de pasta vazio.</summary>
+    public string FolderPlaceholder => "Vazio: volta na última pasta visitada (ou na home)";
 
     /// <summary>Recarrega do modelo (ao abrir o painel): o grupo pode ter mudado de ambiente ou de pasta.</summary>
     public void Load()
     {
         _loading = true;
-        var group = _tab.Group;
-        ShellChoices =
-        [
-            new ShellChoice(null, $"Do grupo ({group.EnvironmentLabel})"),
-            .. _ctx.Shells.Profiles.Select(p => new ShellChoice(p.Id, p.IsWsl ? $"WSL · {p.Name}" : $"Windows · {p.Name}")),
-        ];
-        ShellChoice = ShellChoices.FirstOrDefault(c => c.Id == Model.Shell) ?? ShellChoices[0];
+        ShellChoices = _ctx.Shells.Profiles
+            .Select(p => new ShellChoice(p.Id, p.IsWsl ? $"WSL · {p.Name}" : p.Kind == ShellKind.Custom ? p.Name : $"Windows · {p.Name}"))
+            .ToList();
+        ShellChoice = ShellChoices.FirstOrDefault(c => c.Id == _tab.ShellId);
         Cwd = Model.Cwd ?? "";
         Startup = Model.Startup ?? "";
         Autostart = Model.Autostart;
@@ -120,7 +117,7 @@ public sealed partial class TabConfigViewModel : ObservableObject
 
     partial void OnShellChoiceChanged(ShellChoice? value)
     {
-        if (_loading || value is null || value.Id == Model.Shell)
+        if (_loading || value is null || value.Id == _tab.ShellId)
             return;
         Save(m => m.Shell = value.Id, restart: true);
     }
@@ -166,6 +163,14 @@ public sealed partial class TabConfigViewModel : ObservableObject
 
     [RelayCommand]
     private void UseGroupColor() => SetColor(null);
+
+    /// <summary>A pasta onde a aba está agora vira a pasta fixa dela.</summary>
+    [RelayCommand]
+    private void UseCurrentFolder()
+    {
+        if (_tab.Cwd is { } folder)
+            Cwd = folder;
+    }
 
     [RelayCommand]
     private void AddEnv() => Env.Add(new EnvVarViewModel(this));

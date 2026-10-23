@@ -8,12 +8,12 @@
     xmlns:vm="clr-namespace:Forge.App.ViewModels"
     mc:Ignorable="d"
     d:DataContext="{d:DesignInstance Type=vm:GroupEditorViewModel}"
-    Title="{Binding Title}" Width="540" SizeToContent="Height"
+    Title="{Binding Title}" Width="460" SizeToContent="Height"
     WindowStartupLocation="CenterOwner" ShowInTaskbar="False" ResizeMode="NoResize"
     Background="{DynamicResource Forge.ChromeBrush}" Foreground="{DynamicResource Forge.TextBrush}"
     FontFamily="{DynamicResource Forge.FontUi}" FontSize="13">
 
-    <!-- Um grupo é um projeto: nome, cor, pasta e o ambiente em que as abas dele rodam. -->
+    <!-- O grupo só organiza abas, como no Warp: nome e cor. O tipo e a pasta são de cada aba. -->
     <Window.InputBindings>
         <KeyBinding Key="Escape" Command="{Binding CancelCommand}" />
     </Window.InputBindings>
@@ -28,8 +28,8 @@
                         Background="{Binding Color, Converter={StaticResource HexToBrush}}" />
                 <StackPanel>
                     <TextBlock Text="{Binding PreviewName}" FontWeight="SemiBold" />
-                    <TextBlock Text="{Binding PreviewDetail}" Margin="0,2,0,0" FontSize="12" TextTrimming="CharacterEllipsis"
-                               Foreground="{DynamicResource Forge.TextMutedBrush}" />
+                    <TextBlock Text="Abas: use o + do grupo para abrir PowerShell, CMD, Git Bash ou WSL." Margin="0,2,0,0" FontSize="12"
+                               TextWrapping="Wrap" Foreground="{DynamicResource Forge.TextMutedBrush}" />
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -66,38 +66,6 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
-
-        <TextBlock Text="Ambiente" Margin="0,16,0,6" Style="{StaticResource Forge.FieldLabel}" />
-        <UniformGrid Columns="2">
-            <RadioButton Margin="0,0,6,0" IsChecked="{Binding IsWindows}" GroupName="Ambiente">
-                <StackPanel>
-                    <TextBlock Text="Windows" FontWeight="SemiBold" />
-                    <TextBlock Text="PowerShell, CMD ou Git Bash" FontSize="12" Foreground="{DynamicResource Forge.TextMutedBrush}" />
-                </StackPanel>
-            </RadioButton>
-            <RadioButton Margin="6,0,0,0" IsChecked="{Binding IsWsl}" IsEnabled="{Binding HasWsl}" GroupName="Ambiente">
-                <StackPanel>
-                    <TextBlock Text="WSL" FontWeight="SemiBold" />
-                    <TextBlock Text="Linux numa distro instalada" FontSize="12" Foreground="{DynamicResource Forge.TextMutedBrush}" />
-                </StackPanel>
-            </RadioButton>
-        </UniformGrid>
-
-        <ComboBox Margin="0,10,0,0" Height="32" ItemsSource="{Binding WindowsShells}" SelectedItem="{Binding WindowsShell}" DisplayMemberPath="Name"
-                  AutomationProperties.Name="Shell do Windows"
-                  Visibility="{Binding IsWindows, Converter={StaticResource BoolToVisibility}}" />
-        <ComboBox Margin="0,10,0,0" Height="32" ItemsSource="{Binding Distros}" SelectedItem="{Binding Distro}" DisplayMemberPath="Name"
-                  AutomationProperties.Name="Distro do WSL"
-                  Visibility="{Binding IsWsl, Converter={StaticResource BoolToVisibility}}" />
-
-        <TextBlock Text="Pasta do projeto" Margin="0,16,0,6" Style="{StaticResource Forge.FieldLabel}" />
-        <DockPanel>
-            <Button DockPanel.Dock="Right" Margin="8,0,0,0" Style="{StaticResource Forge.SecondaryButton}" Content="Procurar…"
-                    Command="{Binding BrowseCommand}" />
-            <TextBox Style="{StaticResource Forge.MonoInput}" Text="{Binding Folder, UpdateSourceTrigger=PropertyChanged}"
-                     AutomationProperties.Name="Pasta do projeto" />
-        </DockPanel>
-        <TextBlock Margin="0,6,0,0" Style="{StaticResource Forge.Hint}" Text="{Binding FolderHint}" />
 
         <StackPanel Margin="0,22,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Style="{StaticResource Forge.SecondaryButton}" Content="Cancelar" Command="{Binding CancelCommand}" Margin="0,0,8,0" />

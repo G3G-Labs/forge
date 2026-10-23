@@ -11,8 +11,8 @@ public class LaunchBuilderTests
     private static readonly ShellProfile Ubuntu = new() { Id = "wsl:Ubuntu", Name = "Ubuntu", Kind = ShellKind.Wsl, Flavor = ShellFlavor.Bash, Executable = @"C:\Windows\System32\wsl.exe", Distro = "Ubuntu" };
     private static readonly ShellProfile Cmd = new() { Id = "cmd", Name = "Prompt de Comando", Kind = ShellKind.Cmd, Flavor = ShellFlavor.Cmd, Executable = @"C:\Windows\System32\cmd.exe" };
 
-    private static LaunchPlan Build(WorkspaceTab tab, ShellProfile shell, AppSettings? settings = null, string? groupFolder = null) =>
-        new LaunchBuilder(Scripts).Build(tab, shell, settings ?? new AppSettings(), groupFolder, "dev", "desk-01");
+    private static LaunchPlan Build(WorkspaceTab tab, ShellProfile shell, AppSettings? settings = null) =>
+        new LaunchBuilder(Scripts).Build(tab, shell, settings ?? new AppSettings(), "dev", "desk-01");
 
     [Fact]
     public void PowerShell_carrega_o_script_da_aba_com_dot_source()
@@ -62,12 +62,21 @@ public class LaunchBuilderTests
     }
 
     [Fact]
-    public void Sem_pasta_propria_usa_a_do_grupo_e_com_a_opcao_ligada_a_ultima_visitada()
+    public void Volta_na_ultima_pasta_visitada_ou_na_pasta_fixa()
     {
-        var tab = new WorkspaceTab { Cwd = null, LastCwd = @"C:\dev\outra" };
+        var tab = new WorkspaceTab { Cwd = @"C:\dev\fixa", LastCwd = @"C:\dev\outra" };
 
-        Assert.Equal(@"C:\dev\grupo", LaunchBuilder.ResolveCwd(tab, @"C:\dev\grupo", FolderOnRestore.StartFolder));
-        Assert.Equal(@"C:\dev\outra", LaunchBuilder.ResolveCwd(tab, @"C:\dev\grupo", FolderOnRestore.LastVisited));
+        Assert.Equal(@"C:\dev\outra", LaunchBuilder.ResolveCwd(tab, FolderOnRestore.LastVisited));
+        Assert.Equal(@"C:\dev\fixa", LaunchBuilder.ResolveCwd(tab, FolderOnRestore.StartFolder));
+        Assert.Null(LaunchBuilder.ResolveCwd(new WorkspaceTab(), FolderOnRestore.LastVisited));
+    }
+
+    [Fact]
+    public void Sem_pasta_a_aba_abre_na_home_e_nao_onde_o_Forge_foi_aberto()
+    {
+        Assert.Contains("Set-Location -Path '~'", Assert.Single(Build(new WorkspaceTab { Id = "h1" }, Pwsh).Scripts).Content);
+        Assert.Contains("cd -- ~ 2>/dev/null", Assert.Single(Build(new WorkspaceTab { Id = "h2" }, Ubuntu).Scripts).Content);
+        Assert.Contains("cd /d \"%USERPROFILE%\"", Assert.Single(Build(new WorkspaceTab { Id = "h3" }, Cmd).Scripts).Content);
     }
 
     [Fact]
@@ -98,13 +107,16 @@ public class LaunchBuilderTests
     public void Identidade_injetada_no_prompt_do_bash()
     {
         var settings = new AppSettings();
-        settings.Identity.InjectInBashPrompt = true;
+        settings.Identity.MaskPrompt = true;
         settings.Identity.UserName = "gabriel";
+        settings.Identity.MachineName = "forge $; rm";
 
-        var content = Assert.Single(Build(new WorkspaceTab { Id = "t6" }, Ubuntu, settings).Scripts).Content;
+        var bash = Assert.Single(Build(new WorkspaceTab { Id = "t6" }, Ubuntu, settings).Scripts).Content;
+        var pwsh = Assert.Single(Build(new WorkspaceTab { Id = "t7" }, Pwsh, settings).Scripts).Content;
 
-        Assert.Contains("PS1=${PS1//\\\\u/'gabriel'}", content);
-        Assert.Contains("PS1=${PS1//\\\\h/'desk-01'}", content);
+        // Caracteres que o shell interpretaria saem da máscara.
+        Assert.Contains("PS1='\\[\\e[32m\\]gabriel@forge-rm\\[\\e[0m\\]:\\[\\e[34m\\]\\w\\[\\e[0m\\]\\$ '", bash);
+        Assert.Contains("$global:__forgeMask = 'gabriel@forge-rm'", pwsh);
     }
 
     [Theory]

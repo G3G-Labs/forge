@@ -147,7 +147,7 @@
                                     Content="Importar do Windows Terminal (.json)…" Command="{Binding ImportSchemeCommand}" />
                             <TextBlock Text="TEMA" Style="{StaticResource Forge.SectionLabel}" VerticalAlignment="Center" />
                         </DockPanel>
-                        <ComboBox Margin="0,8,0,0" ItemsSource="{Binding Schemes}" SelectedItem="{Binding Scheme}" DisplayMemberPath="Name" Height="32" />
+                        <ComboBox Margin="0,8,0,0" ItemsSource="{Binding Schemes}" SelectedItem="{Binding Scheme}" DisplayMemberPath="Name" />
                         <TextBlock Margin="0,6,0,0" Style="{StaticResource Forge.Hint}" Text="Forge Claro também deixa a janela clara. As mudanças valem em todas as abas na hora." />
                     </StackPanel>
                     <StackPanel Style="{StaticResource Section}">
@@ -171,7 +171,7 @@
                     <StackPanel Style="{StaticResource Section}">
                         <TextBlock Text="CURSOR" Style="{StaticResource Forge.SectionLabel}" />
                         <StackPanel Orientation="Horizontal">
-                            <ComboBox Width="160" Height="32" ItemsSource="{Binding CursorShapes}" SelectedItem="{Binding Cursor}" />
+                            <ComboBox Width="160" ItemsSource="{Binding CursorShapes}" SelectedItem="{Binding Cursor}" />
                             <ui:ToggleSwitch Margin="16,0,0,0" IsChecked="{Binding CursorBlink}" Content="Piscar" />
                         </StackPanel>
                     </StackPanel>
@@ -197,8 +197,12 @@
                             </StackPanel>
                         </StackPanel>
                         <ui:ToggleSwitch IsChecked="{Binding ShowIdentity}" Content="Mostrar no cabeçalho da aba" Margin="0,12,0,6" />
-                        <ui:ToggleSwitch IsChecked="{Binding InjectPowerShell}" Content="Injetar no prompt do PowerShell" Margin="0,6" />
-                        <ui:ToggleSwitch IsChecked="{Binding InjectBash}" Content="Injetar no prompt do Bash e zsh" Margin="0,6" />
+                        <ui:ToggleSwitch IsChecked="{Binding MaskPrompt}" Margin="0,6"
+                                         Content="Máscara no prompt: mostrar o nome acima no lugar do usuário e da máquina reais" />
+                        <TextBlock Style="{StaticResource Forge.Hint}" Margin="0,2,0,8"
+                                   Text="Vale para PowerShell, bash e zsh (inclusive no WSL) e substitui o prompt do perfil por &quot;nome:pasta&quot;. Abas já abertas: reabra o shell." />
+                        <Button Style="{StaticResource Forge.SecondaryButton}" HorizontalAlignment="Left" Height="30" Content="Reabrir os shells das abas abertas"
+                                Command="{Binding RestartShellsCommand}" />
                     </StackPanel>
                     <StackPanel Style="{StaticResource Section}">
                         <TextBlock Text="AUXÍLIOS EM TODOS OS SHELLS" Style="{StaticResource Forge.SectionLabel}" />

@@ -75,7 +75,10 @@ public sealed class WorkspaceStore : IDisposable
         Flush();
     }
 
-    /// <summary>Corrige o que um arquivo editado à mão pode trazer: ids repetidos ou vazios, nomes em branco.</summary>
+    /// <summary>
+    /// Corrige o que um arquivo editado à mão pode trazer (ids repetidos ou vazios, nomes em branco) e migra o formato
+    /// em que o grupo era um ambiente: o shell e a pasta do grupo passam para as abas que os seguiam.
+    /// </summary>
     internal static void Normalize(WorkspaceFile file)
     {
         file.Version = WorkspaceFile.CurrentVersion;
@@ -92,7 +95,11 @@ public sealed class WorkspaceStore : IDisposable
                     tab.Id = Ids.New("t");
                 if (string.IsNullOrWhiteSpace(tab.Name))
                     tab.Name = "aba";
+                tab.Shell ??= group.Shell;
+                tab.Cwd ??= group.Folder;
             }
+            group.Shell = null;
+            group.Folder = null;
         }
         if (file.SelectedTabId is not null && WorkspaceEditor.FindTab(file, file.SelectedTabId) is null)
             file.SelectedTabId = null;

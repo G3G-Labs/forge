@@ -10,10 +10,10 @@ public sealed record ScriptOptions(
     bool Integration,
     bool CaseInsensitiveCompletion,
     bool FlushHistory,
-    string? IdentityUser,
-    string? IdentityMachine)
+    string? PromptMask)
 {
-    public bool InjectIdentity => IdentityUser is not null && IdentityMachine is not null;
+    /// <summary>A máscara substitui o prompt do shell por "máscara:pasta".</summary>
+    public bool HasMask => PromptMask is not null;
 }
 
 /// <summary>
@@ -45,16 +45,18 @@ public static class ShellScripts
             Line(sb, "}", "\r\n");
         }
 
-        var identity = o.InjectIdentity ? PsQuote($"{o.IdentityUser}@{o.IdentityMachine} ") : "''";
+        // Máscara: o prompt vira "máscara pasta>" (verde e azul); sem ela, fica o prompt do perfil do usuário.
+        Line(sb, "$global:__forgeMask = " + (o.HasMask ? PsQuote(o.PromptMask!) : "$null"), "\r\n");
+        Line(sb, "$global:__forgeOriginalPrompt = $function:prompt", "\r\n");
+        Line(sb, "function global:__forgePromptText {", "\r\n");
+        Line(sb, "    if (-not $global:__forgeMask) { return (& $global:__forgeOriginalPrompt) }", "\r\n");
+        Line(sb, "    $e = [string][char]0x1b", "\r\n");
+        Line(sb, "    \"$e[32m$($global:__forgeMask)$e[0m $e[34m$($executionContext.SessionState.Path.CurrentLocation)$e[0m> \"", "\r\n");
+        Line(sb, "}", "\r\n");
         if (o.Integration)
-        {
-            sb.Append(PowerShellIntegration.Replace("__FORGE_IDENTITY__", identity, StringComparison.Ordinal).ReplaceLineEndings("\r\n"));
-        }
-        else if (o.InjectIdentity)
-        {
-            Line(sb, "$global:__forgeOriginalPrompt = $function:prompt", "\r\n");
-            Line(sb, $"function global:prompt {{ {identity} + (& $global:__forgeOriginalPrompt) }}", "\r\n");
-        }
+            sb.Append(PowerShellIntegration.ReplaceLineEndings("\r\n"));
+        else if (o.HasMask)
+            Line(sb, "function global:prompt { __forgePromptText }", "\r\n");
         return sb.ToString();
     }
 
@@ -72,11 +74,8 @@ public static class ShellScripts
             Line(sb, "shopt -s histappend");
         if (o.CaseInsensitiveCompletion)
             Line(sb, "bind 'set completion-ignore-case on' 2>/dev/null");
-        if (o.InjectIdentity)
-        {
-            Line(sb, $"PS1=${{PS1//\\\\u/{ShQuote(o.IdentityUser!)}}}");
-            Line(sb, $"PS1=${{PS1//\\\\h/{ShQuote(o.IdentityMachine!)}}}");
-        }
+        if (o.HasMask)
+            Line(sb, "PS1='\\[\\e[32m\\]" + o.PromptMask + "\\[\\e[0m\\]:\\[\\e[34m\\]\\w\\[\\e[0m\\]\\$ '");
 
         if (o.Integration)
             sb.Append(BashIntegration.Replace("__FORGE_FLUSH__", o.FlushHistory ? "builtin history -a" : ":", StringComparison.Ordinal).ReplaceLineEndings("\n"));
@@ -104,11 +103,8 @@ public static class ShellScripts
             Line(sb, "setopt INC_APPEND_HISTORY");
         if (o.CaseInsensitiveCompletion)
             Line(sb, "zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'");
-        if (o.InjectIdentity)
-        {
-            Line(sb, $"PROMPT=${{PROMPT//\\%n/{ShQuote(o.IdentityUser!)}}}");
-            Line(sb, $"PROMPT=${{PROMPT//\\%m/{ShQuote(o.IdentityMachine!)}}}");
-        }
+        if (o.HasMask)
+            Line(sb, "PROMPT='%F{green}" + o.PromptMask + "%f:%F{blue}%~%f%# '");
         if (o.Integration)
             sb.Append(ZshIntegration.ReplaceLineEndings("\n"));
         return sb.ToString();
@@ -147,9 +143,7 @@ public static class ShellScripts
     private const string PowerShellIntegration = """
         $global:__forgeEsc = [string][char]0x1b
         $global:__forgeBel = [string][char]0x07
-        $global:__forgeOriginalPrompt = $function:prompt
         $global:__forgeRan = $false
-        $global:__forgeIdentity = __FORGE_IDENTITY__
         function global:__forgeOsc([string]$body) {
             [Console]::Write("$($global:__forgeEsc)]$body$($global:__forgeBel)")
         }
@@ -166,7 +160,7 @@ public static class ShellScripts
                 __forgeOsc ('7;file:///' + ($location.ProviderPath -replace '\\', '/'))
             }
             __forgeOsc '133;A'
-            $text = $global:__forgeIdentity + (& $global:__forgeOriginalPrompt)
+            $text = __forgePromptText
             $global:LASTEXITCODE = $native
             $text + $global:__forgeEsc + ']133;B' + $global:__forgeBel
         }

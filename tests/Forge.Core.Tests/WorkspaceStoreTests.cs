@@ -39,8 +39,8 @@ public class WorkspaceStoreTests
             store.Load();
             store.Update(f =>
             {
-                var group = WorkspaceEditor.AddGroup(f, "Cliente A", folder: @"C:\dev\cliente-a");
-                var tab = WorkspaceEditor.AddTab(group, Pwsh, "web");
+                var group = WorkspaceEditor.AddGroup(f, "Cliente A");
+                var tab = WorkspaceEditor.AddTab(group, Pwsh, "web", cwd: @"C:\dev\cliente-a\web");
                 tab.Startup = "npm run dev";
                 tab.Autostart = true;
                 tab.Env["PORT"] = "3001";
@@ -54,8 +54,8 @@ public class WorkspaceStoreTests
         var tab2 = Assert.Single(group2.Tabs);
         Assert.Equal("Cliente A", group2.Name);
         Assert.Equal("web", tab2.Name);
-        Assert.Equal(@"C:\dev\cliente-a", group2.Folder);
-        Assert.Null(tab2.Cwd); // segue a pasta do grupo
+        Assert.Equal("pwsh", tab2.Shell);
+        Assert.Equal(@"C:\dev\cliente-a\web", tab2.Cwd);
         Assert.Equal("npm run dev", tab2.Startup);
         Assert.True(tab2.Autostart);
         Assert.Equal("3001", tab2.Env["PORT"]);
@@ -100,10 +100,38 @@ public class WorkspaceStoreTests
 
         WorkspaceStore.Normalize(file);
 
+
         Assert.NotEqual(file.Groups[0].Id, file.Groups[1].Id);
         Assert.NotEqual(file.Groups[0].Tabs[0].Id, file.Groups[1].Tabs[0].Id);
         Assert.Equal("Sem nome", file.Groups[0].Name);
         Assert.Equal("aba", file.Groups[0].Tabs[0].Name);
         Assert.Null(file.SelectedTabId);
+    }
+
+    [Fact]
+    public void Grupo_antigo_como_ambiente_passa_shell_e_pasta_para_as_abas()
+    {
+        // Formato da versão anterior: o grupo guardava o ambiente e a pasta; as abas seguiam o grupo.
+        var file = new WorkspaceFile
+        {
+            Groups =
+            [
+                new WorkspaceGroup
+                {
+                    Name = "Rentalz",
+                    Shell = "wsl:Debian",
+                    Folder = "~/Projetos/Rentalz",
+                    Tabs = [new WorkspaceTab { Name = "Front-end" }, new WorkspaceTab { Name = "Back-end", Shell = "pwsh", Cwd = @"C:\dev\api" }],
+                },
+            ],
+        };
+
+        WorkspaceStore.Normalize(file);
+
+        var group = Assert.Single(file.Groups);
+        Assert.Null(group.Shell);
+        Assert.Null(group.Folder);
+        Assert.Equal(("wsl:Debian", "~/Projetos/Rentalz"), (group.Tabs[0].Shell, group.Tabs[0].Cwd));
+        Assert.Equal(("pwsh", @"C:\dev\api"), (group.Tabs[1].Shell, group.Tabs[1].Cwd));
     }
 }

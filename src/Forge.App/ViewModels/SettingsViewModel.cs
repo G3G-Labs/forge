@@ -261,16 +261,21 @@ public sealed partial class SettingsViewModel : ObservableObject
         set => Set(s => s.Identity.ShowInHeader = value);
     }
 
-    public bool InjectPowerShell
+    /// <summary>Máscara no prompt do PowerShell, bash e zsh: "usuário@máquina:pasta", com os nomes acima.</summary>
+    public bool MaskPrompt
     {
-        get => S.Identity.InjectInPowerShellPrompt;
-        set => Set(s => s.Identity.InjectInPowerShellPrompt = value);
+        get => S.Identity.MaskPrompt;
+        set => Set(s => s.Identity.MaskPrompt = value);
     }
 
-    public bool InjectBash
+    /// <summary>A máscara e os auxílios valem quando o shell abre: este pedido reabre os shells das abas abertas.</summary>
+    public event EventHandler? RestartShellsRequested;
+
+    [RelayCommand]
+    private void RestartShells()
     {
-        get => S.Identity.InjectInBashPrompt;
-        set => Set(s => s.Identity.InjectInBashPrompt = value);
+        RestartShellsRequested?.Invoke(this, EventArgs.Empty);
+        _notifier.Show("Shells reabertos", "As abas abertas já usam as configurações novas.");
     }
 
     public bool CaseInsensitiveCompletion

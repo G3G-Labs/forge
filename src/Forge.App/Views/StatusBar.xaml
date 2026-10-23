@@ -9,25 +9,52 @@
     mc:Ignorable="d"
     d:DataContext="{d:DesignInstance Type=vm:MainWindowViewModel}">
 
-    <!-- Barra de status (24 px): administrador, shell, pasta atual, branch e alterações pendentes. -->
+    <!-- Barra de status (24 px): administrador | shell | pasta atual | branch (clique troca) e commits | alterações. -->
     <Border Background="{DynamicResource Forge.ChromeBrush}" BorderBrush="{DynamicResource Forge.LineBrush}" BorderThickness="0,1,0,0">
         <DockPanel Margin="12,0" TextElement.FontSize="12" TextElement.Foreground="{DynamicResource Forge.TextSecondaryBrush}">
             <TextBlock DockPanel.Dock="Right" Text="Salvo automaticamente" VerticalAlignment="Center" Foreground="{DynamicResource Forge.TextMutedBrush}" />
 
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DataContext="{Binding SelectedTab}"
                         Visibility="{Binding Converter={StaticResource NullToVisibility}}">
-                <StackPanel Orientation="Horizontal" Margin="0,0,16,0"
-                            Visibility="{Binding IsElevated, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel Orientation="Horizontal" Visibility="{Binding IsElevated, Converter={StaticResource BoolToVisibility}}">
                     <ui:SymbolIcon Symbol="Shield24" Filled="True" FontSize="11" Foreground="{DynamicResource Forge.AdminBrush}" />
                     <TextBlock Text="Administrador" Margin="5,0,0,0" FontWeight="SemiBold" Foreground="{DynamicResource Forge.AdminBrush}" />
+                    <Border Style="{StaticResource Forge.StatusSeparator}" />
                 </StackPanel>
-                <TextBlock Text="{Binding ShellName}" Margin="0,0,16,0" />
-                <TextBlock Text="{Binding Folder}" Margin="0,0,16,0" FontFamily="{DynamicResource Forge.FontMono}" FontSize="11.5" />
-                <StackPanel Orientation="Horizontal" Margin="0,0,16,0" ToolTip="Commits à frente e atrás do remoto">
-                    <ui:SymbolIcon Symbol="Branch24" FontSize="12" Visibility="{Binding HasGit, Converter={StaticResource BoolToVisibility}}" />
-                    <TextBlock Text="{Binding GitSummary}" Margin="5,0,0,0" />
+
+                <TextBlock Text="{Binding ShellName}" VerticalAlignment="Center" />
+                <Border Style="{StaticResource Forge.StatusSeparator}" />
+                <TextBlock Text="{Binding Folder}" VerticalAlignment="Center" FontFamily="{DynamicResource Forge.FontMono}" FontSize="11.5"
+                           MaxWidth="520" TextTrimming="CharacterEllipsis" ToolTip="{Binding Folder}" />
+
+                <!-- Git: só aparece numa pasta com repositório -->
+                <StackPanel Orientation="Horizontal" Visibility="{Binding HasGit, Converter={StaticResource BoolToVisibility}}">
+                    <Border Style="{StaticResource Forge.StatusSeparator}" />
+                    <Button x:Name="BranchButton" Height="20" Padding="6,0" Click="OnBranchClick" Cursor="Hand"
+                            ToolTip="Trocar de branch" AutomationProperties.Name="Trocar de branch">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bg" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bg" Property="Background" Value="{DynamicResource Forge.SelectedBrush}" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                        <StackPanel Orientation="Horizontal">
+                            <ui:SymbolIcon Symbol="Branch24" FontSize="12" Foreground="{DynamicResource Forge.AccentBrush}" />
+                            <TextBlock Text="{Binding Branch}" Margin="5,0,0,0" FontWeight="SemiBold" Foreground="{DynamicResource Forge.TextBrush}" />
+                            <ui:SymbolIcon Symbol="ChevronDown20" FontSize="10" Margin="4,1,0,0" />
+                        </StackPanel>
+                    </Button>
+                    <TextBlock Text="{Binding AheadBehind}" Margin="6,0,0,0" VerticalAlignment="Center" ToolTip="Commits à frente e atrás do remoto"
+                               Foreground="{DynamicResource Forge.TextMutedBrush}" />
+                    <Border Style="{StaticResource Forge.StatusSeparator}" />
+                    <TextBlock Text="{Binding ChangesText}" VerticalAlignment="Center" ToolTip="Alterações não commitadas" />
                 </StackPanel>
-                <TextBlock Text="{Binding ChangesText}" ToolTip="Alterações não commitadas" />
             </StackPanel>
         </DockPanel>
     </Border>

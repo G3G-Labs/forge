@@ -15,55 +15,56 @@ public sealed partial class LaunchBuilder(string scriptsFolder)
         WorkspaceTab tab,
         ShellProfile shell,
         AppSettings settings,
-        string? groupFolder,
         string fallbackUser,
         string fallbackMachine)
     {
-        var cwd = ResolveCwd(tab, groupFolder, settings.FolderOnRestore);
+        var cwd = ResolveCwd(tab, settings.FolderOnRestore);
         var integration = settings.Helpers.ShellIntegration
             && shell.Kind != ShellKind.Custom
             && shell.SupportsIntegration
             && !settings.IntegrationDisabled.Contains(shell.Id);
 
-        var identity = settings.Identity;
-        var inject = shell.Flavor == ShellFlavor.PowerShell ? identity.InjectInPowerShellPrompt : identity.InjectInBashPrompt;
-        string? user = null, machine = null;
-        if (inject)
-        {
-            user = string.IsNullOrWhiteSpace(identity.UserName) ? fallbackUser : identity.UserName;
-            machine = string.IsNullOrWhiteSpace(identity.MachineName) ? fallbackMachine : identity.MachineName;
-        }
+        var mask = settings.Identity.MaskPrompt ? SanitizeMask(settings.Identity.Display(fallbackUser, fallbackMachine)) : null;
 
-        ScriptOptions Options(string? shellCwd) => new(
+        // Sem pasta, a aba abre na home do usuário (e não na pasta de onde o Forge foi aberto).
+        ScriptOptions Options(string? shellCwd, string home) => new(
             tab.Id,
-            shellCwd,
+            shellCwd ?? home,
             ValidEnv(tab.Env),
             integration,
             settings.Helpers.CaseInsensitiveCompletion,
             settings.Helpers.FlushHistoryEachCommand,
-            user,
-            machine);
+            mask);
 
         return (shell.Kind, shell.Flavor) switch
         {
             (ShellKind.Custom, _) => Raw(shell),
-            (_, ShellFlavor.PowerShell) => PowerShell(tab, shell, Options(cwd)),
-            (ShellKind.Wsl, ShellFlavor.Zsh) => WslZsh(tab, shell, Options(cwd is null ? null : PathMapper.ToWsl(cwd))),
-            (ShellKind.Wsl, _) => WslBash(tab, shell, Options(cwd is null ? null : PathMapper.ToWsl(cwd))),
-            (ShellKind.GitBash, _) => GitBash(tab, shell, Options(cwd is null ? null : PathMapper.ToMsys(cwd))),
-            (ShellKind.Cmd, _) => Cmd(tab, shell, Options(cwd)),
+            (_, ShellFlavor.PowerShell) => PowerShell(tab, shell, Options(cwd, "~")),
+            (ShellKind.Wsl, ShellFlavor.Zsh) => WslZsh(tab, shell, Options(cwd is null ? null : PathMapper.ToWsl(cwd), "~")),
+            (ShellKind.Wsl, _) => WslBash(tab, shell, Options(cwd is null ? null : PathMapper.ToWsl(cwd), "~")),
+            (ShellKind.GitBash, _) => GitBash(tab, shell, Options(cwd is null ? null : PathMapper.ToMsys(cwd), "~")),
+            (ShellKind.Cmd, _) => Cmd(tab, shell, Options(cwd, "%USERPROFILE%")),
             _ => Raw(shell),
         };
     }
 
-    /// <summary>A pasta inicial da aba, a última visitada (se a opção estiver ligada) ou a do grupo.</summary>
-    public static string? ResolveCwd(WorkspaceTab tab, string? groupFolder, FolderOnRestore mode)
+    /// <summary>Onde a aba abre: a última pasta visitada (padrão) ou a pasta fixa dela. null: a home.</summary>
+    public static string? ResolveCwd(WorkspaceTab tab, FolderOnRestore mode)
     {
         if (mode == FolderOnRestore.LastVisited && !string.IsNullOrWhiteSpace(tab.LastCwd))
             return tab.LastCwd;
-        if (!string.IsNullOrWhiteSpace(tab.Cwd))
-            return tab.Cwd;
-        return string.IsNullOrWhiteSpace(groupFolder) ? null : groupFolder;
+        return string.IsNullOrWhiteSpace(tab.Cwd) ? null : tab.Cwd;
+    }
+
+    /// <summary>A máscara vai crua para dentro do prompt de três shells: só letras, dígitos e @ . _ -.</summary>
+    internal static string SanitizeMask(string mask)
+    {
+        var clean = new string(mask.Trim().Replace(' ', '-')
+            .Where(c => char.IsAsciiLetterOrDigit(c) || c is '@' or '.' or '_' or '-').ToArray());
+        while (clean.Contains("--", StringComparison.Ordinal))
+            clean = clean.Replace("--", "-", StringComparison.Ordinal);
+        clean = clean.Trim('-');
+        return clean.Length == 0 ? "forge" : clean;
     }
 
     /// <summary>Só nomes válidos em todos os shells (letras, dígitos e _ sem começar por dígito). O resto é ignorado.</summary>

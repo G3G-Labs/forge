@@ -41,29 +41,23 @@ public class WorkspaceTests
     }
 
     [Fact]
-    public void Aba_nova_segue_a_pasta_e_o_ambiente_do_grupo()
+    public void Grupo_so_organiza_e_cada_aba_tem_o_proprio_tipo()
     {
+        // Como no Warp: Rentalz agrupa um front-end no PowerShell e um back-end no WSL.
         var file = new WorkspaceFile();
-        var group = WorkspaceEditor.AddGroup(file, "Cliente A", folder: "~/cliente-a", shell: Ubuntu.Id);
+        var group = WorkspaceEditor.AddGroup(file, "Rentalz");
 
-        var first = WorkspaceEditor.AddTab(group, Ubuntu);
-        var second = WorkspaceEditor.AddTab(group, Ubuntu);
-        var other = WorkspaceEditor.AddTab(group, Pwsh);
+        var front = WorkspaceEditor.AddTab(group, Pwsh, "Front-end");
+        var back = WorkspaceEditor.AddTab(group, Ubuntu, "Back-end", cwd: "~/rentalz/backend");
+        var third = WorkspaceEditor.AddTab(group, Ubuntu);
+        var fourth = WorkspaceEditor.AddTab(group, Ubuntu);
 
-        // Mesmo ambiente do grupo: a aba não guarda shell nem pasta, e acompanha o grupo se ele mudar.
-        Assert.Null(first.Shell);
-        Assert.Null(first.Cwd);
-        Assert.Equal("~/cliente-a", Forge.Core.Shells.LaunchBuilder.ResolveCwd(first, group.Folder, FolderOnRestore.StartFolder));
-        Assert.Equal("wsl:Ubuntu", WorkspaceEditor.ShellOf(group, first, "pwsh"));
-        Assert.Equal("ubuntu", first.Name);
-        Assert.Equal("ubuntu 2", second.Name);
-
-        // Outro shell: fica gravado na aba.
-        Assert.Equal("pwsh", other.Shell);
-
-        group.Shell = "wsl:Debian";
-        Assert.Equal("wsl:Debian", WorkspaceEditor.ShellOf(group, first, "pwsh"));
-        Assert.Equal("pwsh", WorkspaceEditor.ShellOf(group, other, "pwsh"));
+        Assert.Equal("pwsh", WorkspaceEditor.ShellOf(front, "cmd"));
+        Assert.Equal("wsl:Ubuntu", back.Shell);
+        Assert.Equal("~/rentalz/backend", back.Cwd);
+        Assert.Null(front.Cwd);
+        Assert.Equal(("ubuntu", "ubuntu 2"), (third.Name, fourth.Name));
+        Assert.Equal("cmd", WorkspaceEditor.ShellOf(new WorkspaceTab(), "cmd"));
     }
 
     [Fact]

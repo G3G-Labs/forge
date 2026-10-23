@@ -35,6 +35,17 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
 
     public string Id => Model.Id;
 
+    /// <summary>Iniciais para a barra recolhida: "Front-end" → "FE", "api" → "AP".</summary>
+    public string Initials
+    {
+        get
+        {
+            var words = Name.Split([' ', '-', '_', '.'], StringSplitOptions.RemoveEmptyEntries);
+            var text = words.Length >= 2 ? $"{words[0][0]}{words[1][0]}" : Name.Length >= 2 ? Name[..2] : Name;
+            return text.ToUpperInvariant();
+        }
+    }
+
     public TabConfigViewModel Config { get; }
 
     /// <summary>O grupo atual. Muda quando a aba é arrastada para outro grupo.</summary>
@@ -63,23 +74,21 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
     private int? _exitCode;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Branch), nameof(GitSummary), nameof(ChangesText), nameof(HasGit))]
+    [NotifyPropertyChangedFor(nameof(Branch), nameof(GitSummary), nameof(ChangesText), nameof(HasGit), nameof(AheadBehind))]
     private GitStatus? _git;
 
     /// <summary>Pasta atual: a informada pelo shell (OSC 7) ou, antes disso, a inicial.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Folder), nameof(Subtitle))]
+    [NotifyPropertyChangedFor(nameof(Folder), nameof(Subtitle), nameof(IsFolderPinned))]
     private string? _cwd;
 
     /// <summary>Id do shell em uso: o da aba ou, se ela segue o grupo, o ambiente do grupo.</summary>
-    public string ShellId => WorkspaceEditor.ShellOf(Group.Model, Model, _ctx.Settings.Current.DefaultShell);
+    public string ShellId => WorkspaceEditor.ShellOf(Model, _ctx.Settings.Current.DefaultShell);
 
     public ShellProfile? Shell => _ctx.Shells.Find(ShellId);
 
     public string ShellName => Shell?.Name ?? ShellId;
 
-    /// <summary>A aba segue o ambiente do grupo (não escolheu um shell próprio).</summary>
-    public bool FollowsGroupShell => Model.Shell is null;
 
     /// <summary>Cor da aba; sem cor própria, a do grupo.</summary>
     public string Color => Model.Color ?? Group.Color;
@@ -95,17 +104,24 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
     public string StatusText => State switch
     {
         TabRunState.Running => "Rodando",
-        TabRunState.Failed => $"Erro · código {ExitCode}",
+        TabRunState.Failed => $"Último comando: código {ExitCode}",
         TabRunState.NotStarted => "Não iniciada",
         TabRunState.Exited => "Encerrada",
         _ => "Parada",
     };
 
-    public string Folder => Cwd ?? LaunchBuilder.ResolveCwd(Model, Group.Folder, _ctx.Settings.Current.FolderOnRestore) ?? "~";
+    /// <summary>Pasta atual da aba (a que o shell informou), ou onde ela vai abrir.</summary>
+    public string Folder => Cwd ?? LaunchBuilder.ResolveCwd(Model, _ctx.Settings.Current.FolderOnRestore) ?? "~";
+
+    /// <summary>A pasta atual já é a pasta fixa da aba.</summary>
+    public bool IsFolderPinned => Model.Cwd is not null && Model.Cwd == Cwd;
 
     public string? Branch => Git?.Branch;
 
     public bool HasGit => Git is not null;
+
+    /// <summary>"↑2 ↓1": commits à frente e atrás do remoto.</summary>
+    public string AheadBehind => Git is { } g ? $"↑{g.Ahead} ↓{g.Behind}" : "";
 
     public string GitSummary => Git is { } g ? $"{g.Branch}  ↑{g.Ahead} ↓{g.Behind}" : "sem repositório Git";
 
@@ -119,6 +135,7 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
 
     partial void OnNameChanged(string value)
     {
+        OnPropertyChanged(nameof(Initials));
         if (value != Model.Name)
             _ctx.Store.Update(_ => Model.Name = value);
     }
@@ -148,11 +165,11 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
                 return;
             }
             _status = new TabStatus();
-            _session = _ctx.Sessions.Start(Model, shell, Group.Folder);
+            _session = _ctx.Sessions.Start(Model, shell);
             _session.ShellEventReceived += OnShellEvent;
             _status.ShellStarted();
             State = _status.State;
-            Cwd = LaunchBuilder.ResolveCwd(Model, Group.Folder, _ctx.Settings.Current.FolderOnRestore);
+            Cwd = LaunchBuilder.ResolveCwd(Model, _ctx.Settings.Current.FolderOnRestore);
             OnPropertyChanged(nameof(IsStarted));
             _ = RefreshGitAsync();
             if (HasStartup)
@@ -200,6 +217,36 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
         {
             Git = null;
         }
+    }
+
+    /// <summary>A pasta atual vira a pasta fixa da aba ("Configurar aba" mostra e permite trocar).</summary>
+    [RelayCommand]
+    private void PinFolder()
+    {
+        if (Cwd is not { } folder)
+            return;
+        _ctx.Store.Update(_ => Model.Cwd = folder);
+        OnPropertyChanged(nameof(IsFolderPinned));
+        _ctx.Notifier.Show("Pasta fixada", folder);
+    }
+
+    /// <summary>Branches locais, para o menu da barra de status.</summary>
+    public async Task<IReadOnlyList<string>> BranchesAsync()
+    {
+        if (Shell is not { } shell || Git is null)
+            return [];
+        return await _ctx.Git.BranchesAsync(Folder, shell);
+    }
+
+    /// <summary>Troca de branch pelo git, sem digitar nada no terminal (um servidor rodando nele continua rodando).</summary>
+    [RelayCommand]
+    private async Task SwitchBranchAsync(string branch)
+    {
+        if (Shell is not { } shell || branch == Git?.Branch)
+            return;
+        if (await _ctx.Git.SwitchAsync(Folder, shell, branch) is { } error)
+            _ctx.Notifier.Show($"Não foi possível trocar para {branch}", error, isError: true);
+        await RefreshGitAsync(fresh: true);
     }
 
     [RelayCommand]
@@ -259,7 +306,7 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
         OnPropertyChanged(nameof(ShellName));
         OnPropertyChanged(nameof(HasStartup));
         OnPropertyChanged(nameof(Color));
-        OnPropertyChanged(nameof(FollowsGroupShell));
+        OnPropertyChanged(nameof(IsFolderPinned));
     }
 
     private void RunStartupWhenReady()
@@ -299,10 +346,13 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
             case PromptStarted when _startupPending:
                 SendStartup();
                 break;
+            case CwdChanged when _status.Cwd != Model.LastCwd:
+                // Guarda a pasta onde a aba está: ao reabrir o app, ela volta aqui (como no Warp).
+                Cwd = _status.Cwd;
+                _ctx.Store.Update(_ => Model.LastCwd = Cwd);
+                break;
             case CwdChanged:
                 Cwd = _status.Cwd;
-                if (_ctx.Settings.Current.FolderOnRestore == FolderOnRestore.LastVisited)
-                    _ctx.Store.Update(_ => Model.LastCwd = Cwd);
                 break;
         }
 

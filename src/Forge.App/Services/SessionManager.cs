@@ -28,12 +28,12 @@ public sealed class SessionManager : IDisposable
 
     public event EventHandler<TerminalSession>? Removed;
 
-    public TerminalSession Start(WorkspaceTab tab, ShellProfile shell, string? groupFolder)
+    public TerminalSession Start(WorkspaceTab tab, ShellProfile shell)
     {
         if (_sessions.TryGetValue(tab.Id, out var existing))
             return existing;
 
-        var plan = _launch.Build(tab, shell, _settings.Current, groupFolder, Environment.UserName, Environment.MachineName);
+        var plan = _launch.Build(tab, shell, _settings.Current, Environment.UserName, Environment.MachineName);
         var appearance = _settings.Current.Appearance;
         var session = new TerminalSession(tab.Id, plan, TerminalThemes.From(appearance), appearance.FontFamily, appearance.FontSize);
         _sessions[tab.Id] = session;

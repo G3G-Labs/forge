@@ -1,13 +1,15 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using Forge.App.ViewModels;
+using Forge.Core.Models;
 
 namespace Forge.App.Views;
 
 /// <summary>
 /// Árvore de grupos e abas. O código daqui é só interação que o XAML não expressa: renomear no lugar,
-/// arrastar abas entre grupos e abrir a configuração do grupo com duplo clique.
+/// arrastar abas entre grupos, o "+" que escolhe o tipo da aba e a configuração do grupo com duplo clique.
 /// </summary>
 public partial class Sidebar : UserControl
 {
@@ -83,10 +85,28 @@ public partial class Sidebar : UserControl
         }
     }
 
-    private void OnRailGroupClick(object sender, RoutedEventArgs e)
+    // "+" do grupo: escolher o tipo da aba nova. Windows primeiro, depois cada distro WSL e os perfis próprios.
+    private void OnNewTabClick(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: GroupViewModel group } && Main is { } main && group.Tabs.FirstOrDefault() is { } tab)
-            main.SelectedTab = tab;
+        if (sender is not FrameworkElement { DataContext: GroupViewModel group } anchor || Main is not { } main)
+            return;
+        var menu = new ContextMenu { PlacementTarget = anchor, Placement = PlacementMode.Bottom };
+        menu.Items.Add(new MenuItem { Header = $"Nova aba em {group.Name}", IsEnabled = false });
+        AddShells(menu, group, main.Shells.Where(s => s.Kind is not (ShellKind.Wsl or ShellKind.Custom)), "WINDOWS");
+        AddShells(menu, group, main.Shells.Where(s => s.Kind == ShellKind.Wsl), "WSL");
+        AddShells(menu, group, main.Shells.Where(s => s.Kind == ShellKind.Custom), "PERFIS");
+        menu.IsOpen = true;
+    }
+
+    private static void AddShells(ContextMenu menu, GroupViewModel group, IEnumerable<ShellProfile> shells, string title)
+    {
+        var list = shells.ToList();
+        if (list.Count == 0)
+            return;
+        menu.Items.Add(new Separator());
+        menu.Items.Add(new MenuItem { Header = title, IsEnabled = false, FontSize = 11 });
+        foreach (var shell in list)
+            menu.Items.Add(new MenuItem { Header = shell.Name, Command = group.NewTabCommand, CommandParameter = shell });
     }
 
     // Arrastar e soltar: reordena abas e move entre grupos. O processo da aba continua rodando.

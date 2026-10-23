@@ -90,11 +90,14 @@
             <!-- Onde a aba roda -->
             <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,14">
                 <TextBlock Text="Shell" Style="{StaticResource Forge.FieldLabel}" />
-                <ComboBox ItemsSource="{Binding ShellChoices}" SelectedItem="{Binding ShellChoice}" DisplayMemberPath="Label" Height="32"
+                <ComboBox ItemsSource="{Binding ShellChoices}" SelectedItem="{Binding ShellChoice}" DisplayMemberPath="Label"
                           AutomationProperties.Name="Shell da aba" />
             </StackPanel>
             <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,14">
-                <TextBlock Text="Pasta" Style="{StaticResource Forge.FieldLabel}" />
+                <TextBlock Text="Pasta fixa (opcional)" Style="{StaticResource Forge.FieldLabel}" />
+                <DockPanel>
+                <Button DockPanel.Dock="Right" Margin="8,0,0,0" Style="{StaticResource Forge.SecondaryButton}" Content="Usar a pasta atual"
+                        Command="{Binding UseCurrentFolderCommand}" ToolTip="A pasta onde a aba está agora vira a pasta fixa dela" />
                 <Grid>
                     <TextBox x:Name="CwdBox" Style="{StaticResource Forge.MonoInput}" Text="{Binding Cwd, UpdateSourceTrigger=LostFocus}"
                              AutomationProperties.Name="Pasta da aba" />
@@ -103,6 +106,7 @@
                                TextTrimming="CharacterEllipsis"
                                Visibility="{Binding Text, ElementName=CwdBox, Converter={StaticResource InverseNullToVisibility}}" />
                 </Grid>
+                </DockPanel>
             </StackPanel>
 
             <!-- Comando ao abrir: opcional, escrito pelo usuário -->

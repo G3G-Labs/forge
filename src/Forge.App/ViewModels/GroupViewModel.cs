@@ -6,7 +6,7 @@ using Forge.Core.Workspaces;
 
 namespace Forge.App.ViewModels;
 
-/// <summary>Um grupo (workspace) na barra lateral: nome, cor, recolhido e as abas.</summary>
+/// <summary>Um grupo na barra lateral, como os grupos de abas do Warp: só organiza (nome, cor, recolher e as abas).</summary>
 public sealed partial class GroupViewModel : ObservableObject, IRenamable
 {
     private readonly WorkspaceContext _ctx;
@@ -42,36 +42,18 @@ public sealed partial class GroupViewModel : ObservableObject, IRenamable
     [ObservableProperty]
     private bool _isRenaming;
 
-    public string? Folder => Model.Folder;
-
-    /// <summary>"Windows · PowerShell 7" ou "WSL · Ubuntu": onde as abas do grupo rodam.</summary>
-    public string EnvironmentLabel
-    {
-        get
-        {
-            var shell = _ctx.Shells.Find(Model.Shell ?? _ctx.Settings.Current.DefaultShell);
-            return shell is null ? "Shell padrão" : shell.IsWsl ? $"WSL · {shell.Name}" : $"Windows · {shell.Name}";
-        }
-    }
-
-    /// <summary>Dica da linha do grupo: ambiente e pasta.</summary>
-    public string Details => Folder is { } folder ? $"{EnvironmentLabel}\n{folder}" : $"{EnvironmentLabel}\nsem pasta definida";
-
     /// <summary>Iniciais para a barra recolhida: "Cliente A" → "CA", "Pessoal" → "P".</summary>
     public string Initials => string.Concat(Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2).Select(w => char.ToUpperInvariant(w[0])));
 
     public int RunningCount => Tabs.Count(t => t.State == TabRunState.Running);
 
-    public bool HasError => Tabs.Any(t => t.State == TabRunState.Failed);
+    public bool IsEmpty => Tabs.Count == 0;
 
-    /// <summary>"3" com o grupo aberto; "2 abas · 1 rodando" recolhido, ou "1 erro" quando alguma aba falhou.</summary>
+    /// <summary>"3" com o grupo aberto; "2 abas · 1 rodando" recolhido.</summary>
     public string Summary
     {
         get
         {
-            var errors = Tabs.Count(t => t.State == TabRunState.Failed);
-            if (errors > 0)
-                return errors == 1 ? "1 erro" : $"{errors} erros";
             if (!IsCollapsed)
                 return Tabs.Count.ToString(System.Globalization.CultureInfo.InvariantCulture);
             var label = Tabs.Count == 1 ? "1 aba" : $"{Tabs.Count} abas";
@@ -104,7 +86,7 @@ public sealed partial class GroupViewModel : ObservableObject, IRenamable
     public void Refresh()
     {
         OnPropertyChanged(nameof(RunningCount));
-        OnPropertyChanged(nameof(HasError));
+        OnPropertyChanged(nameof(IsEmpty));
         OnPropertyChanged(nameof(Summary));
     }
 
@@ -124,22 +106,13 @@ public sealed partial class GroupViewModel : ObservableObject, IRenamable
     [RelayCommand]
     private void SetColor(string color) => Color = color;
 
-    /// <summary>"+" no grupo: aba nova já no ambiente e na pasta do grupo.</summary>
+    /// <summary>Aba nova do tipo escolhido no "+" (PowerShell, CMD, Git Bash, WSL…); sem tipo, o padrão.</summary>
     [RelayCommand]
     private void NewTab(ShellProfile? shell) => Owner.NewTab(this, shell);
 
     [RelayCommand]
     private void Configure() => Owner.EditGroup(this);
 
-    /// <summary>Configurar grupo mudou a pasta ou o ambiente: atualiza o grupo e as abas que o seguem.</summary>
-    public void ModelChanged()
-    {
-        OnPropertyChanged(nameof(Folder));
-        OnPropertyChanged(nameof(EnvironmentLabel));
-        OnPropertyChanged(nameof(Details));
-        foreach (var tab in Tabs)
-            tab.ModelChanged();
-    }
 
     [RelayCommand]
     private void Remove() => Owner.RemoveGroup(this);
