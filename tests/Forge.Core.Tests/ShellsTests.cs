@@ -42,7 +42,7 @@ public class ShellsTests
     public void Le_a_pasta_do_OSC_7(string uri, string? expected) => Assert.Equal(expected, PathMapper.FromFileUri(uri));
 
     [Fact]
-    public void Detecta_os_shells_instalados()
+    public async Task Detecta_os_shells_instalados()
     {
         var probe = new FakeProbe(
             existing:
@@ -56,7 +56,7 @@ public class ShellsTests
             distros: ["Ubuntu", "Debian"]);
         var catalog = new ShellCatalog(probe);
 
-        var profiles = catalog.DetectAsync([]).GetAwaiter().GetResult();
+        var profiles = await catalog.DetectAsync([]);
 
         Assert.Equal(new[] { "pwsh", "powershell", "cmd", "gitbash", "wsl:Ubuntu", "wsl:Debian" }, profiles.Select(p => p.Id));
         Assert.Equal("Ubuntu", catalog.Find("wsl:Ubuntu")!.Distro);

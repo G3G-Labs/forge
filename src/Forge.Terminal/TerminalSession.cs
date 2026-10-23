@@ -37,7 +37,7 @@ public sealed class TerminalSession : IDisposable
             ConPTYTerm = _pty,
             StartupCommandLine = plan.CommandLine,
             FontFamilyWhenSettingTheme = new FontFamily(fontFamily),
-            FontSizeWhenSettingTheme = fontSize,
+            FontSizeWhenSettingTheme = (int)Math.Round(fontSize),
             Visibility = Visibility.Collapsed,
         };
         // O tema vale depois da fonte: o controle aplica os dois juntos.
@@ -80,7 +80,7 @@ public sealed class TerminalSession : IDisposable
     public void ApplyTheme(TerminalTheme theme, string fontFamily, double fontSize)
     {
         Control.FontFamilyWhenSettingTheme = new FontFamily(fontFamily);
-        Control.FontSizeWhenSettingTheme = fontSize;
+        Control.FontSizeWhenSettingTheme = (int)Math.Round(fontSize);
         Control.Theme = theme;
     }
 

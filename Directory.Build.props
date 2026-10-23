@@ -10,6 +10,8 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <SatelliteResourceLanguages>pt-BR;en</SatelliteResourceLanguages>
+    <!-- Sem .pdb no Release: a publicação entrega só o .exe. -->
+    <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
 
     <Version>0.1.0</Version>
     <Product>Forge</Product>

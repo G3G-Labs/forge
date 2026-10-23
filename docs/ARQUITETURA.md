@@ -1,6 +1,6 @@
 # Arquitetura do Forge
 
-Out 23, 2026 · G3G Labs · estado: estrutura inicial escrita, ainda não compilada
+Out 23, 2026 · G3G Labs · estado: compila sem avisos e os testes passam; ainda não testado no Windows
 
 Este documento descreve como o código do Forge está organizado: projetos, pastas, arquivos, responsabilidades e os
 fluxos principais. O escopo do produto está em [Escopo-Forge.md](Escopo-Forge.md); as telas, no canvas
@@ -266,12 +266,12 @@ Uma tag `vX.Y.Z` publica as duas pelo GitHub Actions.
 
 ## Pendências e riscos
 
-Esta é a estrutura inicial: foi escrita sem compilar (não há .NET SDK neste ambiente). O primeiro `dotnet build`
-no Windows pode apontar ajustes pequenos, e os avisos estão configurados como erro.
+A solução compila sem erros nem avisos (que contam como erro) com o .NET SDK 10.0.402, os 59 testes do Core passam e
+as duas edições do `.exe` são publicadas. O que ainda falta é abrir o app no Windows e passar pelos fluxos reais.
 
 | Ponto | Situação |
 |---|---|
-| API do EasyWindowsTerminalControl | `TerminalSession` usa `ConPTYTerm` (atribuível), `TermPTY.InterceptOutputToUITerminal`, `WriteToTerm`, `CloseStdinToApp` e `StopExternalTermOnly`. Os três últimos já são usados no WSL Vision; os dois primeiros precisam ser confirmados na versão 1.0.38. Se o intercept não existir, a alternativa é uma subclasse de `TermPTY`. |
+| API do EasyWindowsTerminalControl | `TerminalSession` usa `ConPTYTerm` (atribuível), `TermPTY.InterceptOutputToUITerminal`, `WriteToTerm`, `CloseStdinToApp` e `StopExternalTermOnly`: tudo existe na versão 1.0.38 (compila). Falta confirmar no Windows que o intercept recebe a saída inteira, com as OSC. |
 | Fim do processo do shell | O estado "Encerrada" existe em `TabStatus`, mas o aviso de que o shell saiu ainda precisa ser ligado ao evento do `TermPTY`. |
 | Busca no terminal (Ctrl+Shift+F) e links clicáveis | Dependem do que o controle nativo expõe. O atalho existe e hoje mostra um aviso. |
 | Conflito de atalhos | Ctrl+R e Ctrl+W são do bash (busca reversa, apagar palavra). O escopo os usa para o histórico do Forge e para fechar a aba; dá para remapear. O WSL Vision escolheu Ctrl+Shift. Vale decidir antes do beta. |

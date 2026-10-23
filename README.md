@@ -18,7 +18,7 @@ Terminal leve para Windows em que abas e grupos configurados uma vez continuam l
 **O que ele não é:** sem IA, sem conta, sem nuvem e sem motor web embutido. Um único `.exe` para Windows, em que cada recurso precisa justificar o próprio consumo de memória.
 
 > [!NOTE]
-> Projeto em fase inicial. A estrutura do código, as telas e a marca estão prontas, mas o app ainda não foi compilado nem testado no Windows. Acompanhe e sugira pelas [Issues](../../issues).
+> Projeto em fase inicial. O código compila e os testes passam, mas o app ainda não foi testado no Windows. Acompanhe e sugira pelas [Issues](../../issues).
 
 ## O que tem
 
@@ -159,7 +159,8 @@ Funciona offline, sem conta e sem telemetria. A única chamada de rede é a veri
 
 - Estrutura completa da solução: Core, Terminal, App, testes do Core, workflow de release e marca.
 - Telas desenhadas para todas as funcionalidades do MVP (janela principal, abas e grupos, Ctrl+R, erro e Git, administrador, Configurações e Sobre).
-- **Ainda não compilado:** o primeiro `dotnet build` no Windows deve pedir ajustes. As pendências conhecidas estão no fim de [docs/ARQUITETURA.md](docs/ARQUITETURA.md) (busca no terminal, aviso de shell encerrado, log em arquivo e verificação de atualização).
+- Compila sem avisos; 59 testes de unidade passam. As duas edições do `.exe` são geradas (leve ~9 MB, portátil ~134 MB).
+- **Ainda não testado no Windows.** As pendências conhecidas estão no fim de [docs/ARQUITETURA.md](docs/ARQUITETURA.md) (busca no terminal, aviso de shell encerrado, log em arquivo e verificação de atualização).
 
 ## Próximas versões
 
