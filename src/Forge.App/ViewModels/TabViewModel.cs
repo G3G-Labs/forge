@@ -30,6 +30,7 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
         Group = group;
         Name = model.Name;
         Config = new TabConfigViewModel(this, ctx);
+        ColorMenu = ColorMenuItem.Build(SetColorCommand, [new ColorMenuItem("Do grupo", null, SetColorCommand)], new ColorMenuItem("Personalizada…", null, OpenConfigCommand));
     }
 
     public WorkspaceTab Model { get; }
@@ -48,6 +49,9 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
     }
 
     public TabConfigViewModel Config { get; }
+
+    /// <summary>Submenu "Cor da aba": do grupo, a paleta e "Personalizada…" (abre Configurar aba, com o campo #RRGGBB).</summary>
+    public IReadOnlyList<ColorMenuItem> ColorMenu { get; }
 
     /// <summary>O grupo atual. Muda quando a aba é arrastada para outro grupo.</summary>
     [ObservableProperty]
@@ -299,6 +303,9 @@ public sealed partial class TabViewModel : ObservableObject, IRenamable
 
     [RelayCommand]
     private void Configure() => IsConfigOpen = !IsConfigOpen;
+
+    [RelayCommand]
+    private void OpenConfig() => IsConfigOpen = true;
 
     [RelayCommand]
     private void BeginRename() => IsRenaming = true;

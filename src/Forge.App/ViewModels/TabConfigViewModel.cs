@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Forge.Core.Models;
 using Forge.Core.Shells;
+using Forge.Core.Util;
 using Forge.Core.Workspaces;
 
 namespace Forge.App.ViewModels;
@@ -271,8 +272,26 @@ public sealed partial class TabConfigViewModel : ObservableObject
     {
         foreach (var option in Colors)
             option.IsSelected = string.Equals(option.Hex, Model.Color, StringComparison.OrdinalIgnoreCase);
+        // O campo mostra a cor da aba, sem atropelar o que o usuário está digitando ("#3a7" já é #33AA77).
+        if (Palette.NormalizeHex(CustomHex) != Model.Color)
+        {
+            var wasLoading = _loading;
+            _loading = true;
+            CustomHex = Model.Color ?? "";
+            _loading = wasLoading;
+        }
         OnPropertyChanged(nameof(PreviewColor));
         OnPropertyChanged(nameof(UsesGroupColor));
+    }
+
+    /// <summary>Qualquer cor, além da paleta: #RRGGBB (ou #RGB) digitado pelo usuário. Vazio: a cor do grupo.</summary>
+    [ObservableProperty]
+    private string _customHex = "";
+
+    partial void OnCustomHexChanged(string value)
+    {
+        if (!_loading && Palette.NormalizeHex(value) is { } hex && hex != Model.Color)
+            SetColor(hex);
     }
 
     private void Save(Action<WorkspaceTab> change, bool restart)

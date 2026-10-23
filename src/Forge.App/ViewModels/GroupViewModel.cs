@@ -22,6 +22,7 @@ public sealed partial class GroupViewModel : ObservableObject, IRenamable
         foreach (var tab in model.Tabs)
             Tabs.Add(new TabViewModel(tab, this, ctx));
         Tabs.CollectionChanged += (_, _) => Refresh();
+        ColorMenu = ColorMenuItem.Build(SetColorCommand, [], new ColorMenuItem("Personalizada…", null, ConfigureCommand));
     }
 
     public WorkspaceGroup Model { get; }
@@ -29,6 +30,9 @@ public sealed partial class GroupViewModel : ObservableObject, IRenamable
     public MainWindowViewModel Owner { get; }
 
     public ObservableCollection<TabViewModel> Tabs { get; } = [];
+
+    /// <summary>Submenu "Cor do grupo": a paleta e "Personalizada…" (abre Configurar grupo, com o campo #RRGGBB).</summary>
+    public IReadOnlyList<ColorMenuItem> ColorMenu { get; }
 
     [ObservableProperty]
     private string _name = "";

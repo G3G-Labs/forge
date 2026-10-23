@@ -41,6 +41,21 @@ public sealed class ExternalApps(IProcessRunner runner, IShellProbe probe)
     public void OpenInExplorer(string folder, ShellProfile shell) =>
         runner.Launch("explorer.exe", [WindowsPath(folder, shell)]);
 
+    /// <summary>
+    /// Abre um link do terminal no navegador padrão. Só http e https: o link vem da saída de um programa, e outros
+    /// esquemas (file:, ms-…:, protocolos de apps) abririam arquivos ou programas.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Não é um link http(s).</exception>
+    public void OpenUrl(string url)
+    {
+        if (!IsWebLink(url))
+            throw new InvalidOperationException("Só links http e https abrem no navegador.");
+        runner.Launch(new Uri(url).AbsoluteUri, []);
+    }
+
+    public static bool IsWebLink(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
     /// <summary>O Code.exe da instalação cujo bin\code.cmd está no PATH, ou null.</summary>
     internal string? VsCodeExecutable()
     {

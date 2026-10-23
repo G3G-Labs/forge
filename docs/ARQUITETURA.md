@@ -85,6 +85,7 @@ Forge/
 │   │   ├── ShellIntegration/
 │   │   │   ├── OscParser.cs         lê OSC 133/633 na saída (assinadas com o nonce da sessão), mesmo partidas
 │   │   │   ├── PasteText.cs         comando do Ctrl+R em uma linha, sem Enter nem controles
+│   │   │   ├── LinkTracker.cs       links http(s) da saída, para o "abrir no navegador" do clique direito
 │   │   │   └── ShellEvent.cs        PromptStarted, CommandLineReceived, CommandStarted, CommandFinished, CwdChanged
 │   │   ├── Git/
 │   │   │   ├── GitService.cs        git status em lote; em abas WSL, dentro da distro; cache curto
@@ -113,7 +114,8 @@ Forge/
 │       │   ├── ShortcutMap.cs       atalhos lidos antes do terminal nativo; remapeáveis
 │       │   ├── SingleInstance.cs    uma janela comum e uma de administrador; repasse por pipe
 │       │   ├── AdminTabPayload.cs   aba enviada da janela comum para a de administrador
-│       │   └── Notifier.cs          aviso no canto ("Workspaces restaurados", erros)
+│       │   ├── Notifier.cs          aviso no canto ("Workspaces restaurados", erros)
+│       │   └── InstalledFonts.cs    fontes do sistema e do usuário (busca em Aparência), marca as monoespaçadas
 │       ├── ViewModels/
 │       │   ├── MainWindowViewModel.cs  árvore, seleção, restauração, ações com atalho
 │       │   ├── GroupViewModel.cs       grupo: nome, cor, pasta, ambiente, recolher

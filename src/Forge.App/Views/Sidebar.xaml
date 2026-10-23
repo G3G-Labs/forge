@@ -32,15 +32,7 @@
             <MenuItem Header="Configurar aba…" Command="{Binding ConfigureCommand}" />
             <MenuItem Header="Fixar a pasta atual" Command="{Binding PinFolderCommand}" />
             <Separator />
-            <MenuItem Header="Cor da aba">
-                <MenuItem Header="Do grupo" Command="{Binding SetColorCommand}" CommandParameter="{x:Null}" />
-                <MenuItem Header="Azul" Command="{Binding SetColorCommand}" CommandParameter="#4F8EF7" />
-                <MenuItem Header="Violeta" Command="{Binding SetColorCommand}" CommandParameter="#A47CF3" />
-                <MenuItem Header="Turquesa" Command="{Binding SetColorCommand}" CommandParameter="#2BB5B0" />
-                <MenuItem Header="Rosa" Command="{Binding SetColorCommand}" CommandParameter="#E58AC1" />
-                <MenuItem Header="Ardósia" Command="{Binding SetColorCommand}" CommandParameter="#8A9BB0" />
-                <MenuItem Header="Areia" Command="{Binding SetColorCommand}" CommandParameter="#C9A27A" />
-            </MenuItem>
+            <MenuItem Header="Cor da aba" ItemsSource="{Binding ColorMenu}" ItemContainerStyle="{StaticResource Forge.ColorMenuItem}" />
             <Separator />
             <MenuItem Header="Fechar aba" InputGestureText="Ctrl+W" Command="{Binding CloseCommand}" />
         </ContextMenu>
@@ -49,14 +41,7 @@
             <MenuItem Header="Nova aba (shell padrão)" InputGestureText="Ctrl+T" Command="{Binding NewTabCommand}" CommandParameter="{x:Null}" />
             <MenuItem Header="Configurar grupo…" Command="{Binding ConfigureCommand}" />
             <MenuItem Header="Renomear" Command="{Binding BeginRenameCommand}" />
-            <MenuItem Header="Cor do grupo">
-                <MenuItem Header="Azul" Command="{Binding SetColorCommand}" CommandParameter="#4F8EF7" />
-                <MenuItem Header="Violeta" Command="{Binding SetColorCommand}" CommandParameter="#A47CF3" />
-                <MenuItem Header="Turquesa" Command="{Binding SetColorCommand}" CommandParameter="#2BB5B0" />
-                <MenuItem Header="Rosa" Command="{Binding SetColorCommand}" CommandParameter="#E58AC1" />
-                <MenuItem Header="Ardósia" Command="{Binding SetColorCommand}" CommandParameter="#8A9BB0" />
-                <MenuItem Header="Areia" Command="{Binding SetColorCommand}" CommandParameter="#C9A27A" />
-            </MenuItem>
+            <MenuItem Header="Cor do grupo" ItemsSource="{Binding ColorMenu}" ItemContainerStyle="{StaticResource Forge.ColorMenuItem}" />
             <Separator />
             <MenuItem Header="Remover grupo" Command="{Binding RemoveCommand}" />
         </ContextMenu>

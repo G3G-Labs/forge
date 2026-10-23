@@ -6,12 +6,12 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
     xmlns:vm="clr-namespace:Forge.App.ViewModels"
+    xmlns:services="clr-namespace:Forge.App.Services"
     mc:Ignorable="d"
     d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
     Title="Configurações" Width="920" Height="656" MinWidth="760" MinHeight="520"
-    WindowStartupLocation="CenterOwner" ShowInTaskbar="False" ResizeMode="CanResizeWithGrip"
-    Background="{DynamicResource Forge.ChromeBrush}" Foreground="{DynamicResource Forge.TextBrush}"
-    FontFamily="{DynamicResource Forge.FontUi}" FontSize="13">
+    WindowStartupLocation="CenterOwner" ShowInTaskbar="False" ResizeMode="CanResize"
+    Style="{StaticResource Forge.DialogWindow}">
 
     <!-- O único modal do app: configurações globais. Tudo salva na hora, em settings.json. -->
     <Window.InputBindings>
@@ -174,8 +174,34 @@
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <StackPanel>
-                                <TextBlock Text="Família" Style="{StaticResource Forge.FieldLabel}" />
-                                <TextBox Style="{StaticResource Forge.Input}" Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}" />
+                                <DockPanel Margin="0,0,0,6">
+                                    <CheckBox DockPanel.Dock="Right" IsChecked="{Binding OnlyMonospaced}" Content="Só monoespaçadas" FontSize="12" />
+                                    <TextBlock VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Forge.TextSecondaryBrush}">
+                                        <Run Text="Família:" />
+                                        <Run Text="{Binding FontFamily, Mode=OneWay}" FontWeight="SemiBold" Foreground="{DynamicResource Forge.TextBrush}" />
+                                    </TextBlock>
+                                </DockPanel>
+                                <TextBox Style="{StaticResource Forge.Input}" Text="{Binding FontSearch, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="Buscar fonte instalada" ToolTip="Parte do nome: cascadia, fira, jetbrains, nerd…" />
+                                <!-- As fontes instaladas que batem com a busca, cada uma desenhada nela mesma. Clique para usar. -->
+                                <ListBox Height="184" Margin="0,6,0,0" ItemsSource="{Binding FontChoices}" SelectedItem="{Binding SelectedFont}"
+                                         ItemContainerStyle="{StaticResource Forge.ListItem}" Background="{DynamicResource Forge.InputBrush}"
+                                         BorderBrush="{DynamicResource Forge.StrongLineBrush}" BorderThickness="1" Padding="4"
+                                         VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Fontes instaladas">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type services:FontChoice}">
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right" Text="mono" FontSize="11" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource Forge.TextMutedBrush}"
+                                                           Visibility="{Binding Monospaced, Converter={StaticResource BoolToVisibility}}" />
+                                                <TextBlock Text="{Binding Name}" FontFamily="{Binding Name}" FontSize="14" TextTrimming="CharacterEllipsis" />
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock Margin="0,4,0,0" Style="{StaticResource Forge.Hint}" Text="Lendo as fontes instaladas…"
+                                           Visibility="{Binding IsLoadingFonts, Converter={StaticResource BoolToVisibility}}" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Tamanho" Style="{StaticResource Forge.FieldLabel}" />
@@ -215,7 +241,7 @@
                         <ui:ToggleSwitch IsChecked="{Binding MaskPrompt}" Margin="0,6"
                                          Content="Máscara no prompt: mostrar o nome acima no lugar do usuário e da máquina reais" />
                         <TextBlock Style="{StaticResource Forge.Hint}" Margin="0,2,0,8"
-                                   Text="Vale para PowerShell, bash e zsh (inclusive no WSL) e substitui o prompt do perfil por &quot;nome:pasta&quot;. Abas já abertas: reabra o shell." />
+                                   Text="Vale para PowerShell, CMD, bash e zsh (inclusive no WSL) e substitui o prompt do perfil por &quot;nome:pasta&quot;, com a home como ~. Abas já abertas: use o botão abaixo para reabrir os shells." />
                         <Button Style="{StaticResource Forge.SecondaryButton}" HorizontalAlignment="Left" Height="30" Content="Reabrir os shells das abas abertas"
                                 Command="{Binding RestartShellsCommand}" />
                     </StackPanel>
@@ -224,7 +250,7 @@
                         <ui:ToggleSwitch IsChecked="{Binding CaseInsensitiveCompletion}" Content="Autocomplete ignora maiúsculas (bash e zsh: cd doc + Tab → Documentos/)" Margin="0,6" />
                         <ui:ToggleSwitch IsChecked="{Binding FlushHistory}" Content="Histórico do shell gravado a cada comando (seta para cima depois do reinício)" Margin="0,6" />
                         <ui:ToggleSwitch IsChecked="{Binding ShellIntegration}" Content="Integração de shell (estado da aba e histórico unificado)" Margin="0,6" />
-                        <ui:ToggleSwitch IsChecked="{Binding ClickableLinks}" Content="Links clicáveis (Ctrl+clique)" Margin="0,6" />
+                        <ui:ToggleSwitch IsChecked="{Binding ClickableLinks}" Content="Links no clique direito: abrir no navegador os links que aparecem no terminal" Margin="0,6" />
                         <TextBlock Margin="0,8,0,0" Style="{StaticResource Forge.Hint}"
                                    Text="Tudo é injetado por argumentos e arquivos do próprio app. Nada é gravado em .bashrc, .zshrc, .inputrc ou no perfil do PowerShell." />
                     </StackPanel>

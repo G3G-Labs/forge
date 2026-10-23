@@ -111,5 +111,6 @@ public sealed class HelperSettings
     /// <summary>Scripts OSC 133 que alimentam o estado da aba e o histórico unificado.</summary>
     public bool ShellIntegration { get; set; } = true;
 
+    /// <summary>O clique direito no terminal oferece abrir no navegador os links http(s) que apareceram na saída.</summary>
     public bool ClickableLinks { get; set; } = true;
 }

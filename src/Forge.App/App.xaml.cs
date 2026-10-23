@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Threading;
 using Forge.App.Services;
 using Forge.App.ViewModels;
@@ -14,6 +16,8 @@ using Forge.Core.Processes;
 using Forge.Core.Shells;
 using Forge.Terminal.Native;
 using Forge.Terminal.Shells;
+using Wpf.Ui.Appearance;
+using Wpf.Ui.Markup;
 
 namespace Forge.App;
 
@@ -25,6 +29,9 @@ public partial class App : Application
     private TrayService? _tray;
     private AuditLog? _audit;
     private MainWindowViewModel? _vm;
+
+    // O tema do WPF-UI em uso: o App.xaml começa no escuro (o ThemesDictionary só deixa escrever o tema, não ler).
+    private ApplicationTheme _wpfUiTheme = ApplicationTheme.Dark;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -47,6 +54,7 @@ public partial class App : Application
         var settings = new SettingsStore(paths.Settings) { IsReadOnly = args.Admin };
         settings.Load();
         ApplyChromeTheme(settings.Current.Appearance);
+        RegisterColorMenuItemStyle();
 
         // O log de auditoria vem primeiro: daqui em diante, todo erro tem onde ser gravado.
         var audit = _audit = new AuditLog(paths.Logs, args.Admin ? "admin" : "main") { Enabled = settings.Current.AuditLog };
@@ -133,16 +141,42 @@ public partial class App : Application
 
     /// <summary>
     /// Tema da janela: o claro acompanha o esquema "Forge Claro"; qualquer outro usa o escuro. As telas pegam as
-    /// cores por DynamicResource, então trocar o dicionário repinta tudo na hora.
+    /// cores por DynamicResource, então trocar os dicionários repinta tudo na hora. São dois: o tema do WPF-UI (texto
+    /// dos campos, listas, chaves, menus) e os tokens do Forge. Trocar só os tokens deixava os textos brancos no claro.
     /// </summary>
     private void ApplyChromeTheme(AppearanceSettings appearance)
     {
         var light = appearance.Scheme == BuiltInSchemes.ForgeLight.Name;
-        var source = new Uri(light ? "Themes/Tokens.Light.xaml" : "Themes/Tokens.xaml", UriKind.Relative);
         var dictionaries = Resources.MergedDictionaries;
+        const int WpfUiThemeIndex = 0;
         const int TokensIndex = 2;
-        if (dictionaries.Count > TokensIndex && dictionaries[TokensIndex].Source?.OriginalString != source.OriginalString)
+        if (dictionaries.Count <= TokensIndex)
+            return;
+
+        var theme = light ? ApplicationTheme.Light : ApplicationTheme.Dark;
+        if (_wpfUiTheme != theme)
+        {
+            dictionaries[WpfUiThemeIndex] = new ThemesDictionary { Theme = theme };
+            _wpfUiTheme = theme;
+        }
+
+        var source = new Uri(light ? "Themes/Tokens.Light.xaml" : "Themes/Tokens.xaml", UriKind.Relative);
+        if (dictionaries[TokensIndex].Source?.OriginalString != source.OriginalString)
             dictionaries[TokensIndex] = new ResourceDictionary { Source = source };
+    }
+
+    /// <summary>
+    /// Item do submenu "Cor da aba" / "Cor do grupo" (Forge.ColorMenuItem), gerado da paleta. Montado aqui, e não no
+    /// App.xaml, para herdar o estilo de MenuItem do WPF-UI só se ele existir: um BasedOn estático sem ele derrubaria o app.
+    /// </summary>
+    private void RegisterColorMenuItemStyle()
+    {
+        var style = new Style(typeof(MenuItem), TryFindResource(typeof(MenuItem)) as Style);
+        style.Setters.Add(new Setter(HeaderedItemsControl.HeaderProperty, new Binding()));
+        style.Setters.Add(new Setter(HeaderedItemsControl.HeaderTemplateProperty, FindResource("Forge.ColorMenuHeader")));
+        style.Setters.Add(new Setter(MenuItem.CommandProperty, new Binding(nameof(ColorMenuItem.Command))));
+        style.Setters.Add(new Setter(MenuItem.CommandParameterProperty, new Binding(nameof(ColorMenuItem.Hex))));
+        Resources["Forge.ColorMenuItem"] = style;
     }
 
     private static void TrimHistoryQuietly(HistoryStore history, AuditLog audit)

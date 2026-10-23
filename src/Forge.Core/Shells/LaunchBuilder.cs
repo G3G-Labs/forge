@@ -50,7 +50,7 @@ public sealed partial class LaunchBuilder(string scriptsFolder, Func<string>? no
         return (shell.Kind, shell.Flavor) switch
         {
             (ShellKind.Custom, _) => Raw(shell, sessionNonce),
-            (_, ShellFlavor.PowerShell) => PowerShell(tab, shell, Options(cwd, "~")),
+            (_, ShellFlavor.PowerShell) => PowerShell(tab, shell, Options(cwd, "~") with { LinuxHome = shell.InWsl ? shell.WslHome : null }),
             (ShellKind.Wsl, ShellFlavor.Zsh) => WslZsh(tab, shell, Options(cwd is null ? null : PathMapper.ToWsl(cwd), "~")),
             (ShellKind.Wsl, ShellFlavor.Bash) => WslBash(tab, shell, Options(cwd is null ? null : PathMapper.ToWsl(cwd), "~") with { LoginProfile = true }),
             (ShellKind.Wsl, _) => WslOther(shell, cwd, sessionNonce),

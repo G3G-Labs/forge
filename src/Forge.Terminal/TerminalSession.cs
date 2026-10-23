@@ -16,6 +16,7 @@ namespace Forge.Terminal;
 public sealed class TerminalSession : IDisposable
 {
     private readonly OscParser _parser;
+    private readonly LinkTracker _links = new();
     private readonly TermPTY _pty;
     private readonly Lock _gate = new();
     private readonly List<string> _pendingInput = [];
@@ -89,6 +90,19 @@ public sealed class TerminalSession : IDisposable
     /// <summary>Ctrl+C: o ConPTY entrega como sinal ao processo em primeiro plano.</summary>
     public void Interrupt() => Send("\x03");
 
+    /// <summary>Os links http(s) que apareceram na saída, do mais recente para o mais antigo.</summary>
+    public IReadOnlyList<string> RecentLinks()
+    {
+        lock (_gate)
+            return [.. _links.Links];
+    }
+
+    /// <summary>O texto selecionado com o mouse no terminal, ou vazio.</summary>
+    public string SelectedText() => Control.Terminal?.GetSelectedText() ?? "";
+
+    /// <summary>Cola texto como se fosse digitado; as quebras de linha viram Enter (\r), como no Windows Terminal.</summary>
+    public void Paste(string text) => Send(text.ReplaceLineEndings("\r"));
+
     public void ApplyTheme(TerminalTheme theme, string fontFamily, double fontSize)
     {
         Control.FontFamilyWhenSettingTheme = new FontFamily(fontFamily);
@@ -113,6 +127,7 @@ public sealed class TerminalSession : IDisposable
         var first = false;
         lock (_gate)
         {
+            _links.Feed(text);
             if (!_started)
             {
                 _started = first = true;

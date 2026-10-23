@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Forge.Core.Models;
+using Forge.Core.Util;
 
 namespace Forge.App.ViewModels;
 
@@ -14,15 +15,9 @@ public sealed partial class ColorOption(string hex, string name) : ObservableObj
     [ObservableProperty]
     private bool _isSelected;
 
+    /// <summary>A paleta do Forge (Core.Util.Palette), uma opção por cor.</summary>
     public static IReadOnlyList<ColorOption> CreateSet() =>
-    [
-        new("#4F8EF7", "Azul"),
-        new("#A47CF3", "Violeta"),
-        new("#2BB5B0", "Turquesa"),
-        new("#E58AC1", "Rosa"),
-        new("#8A9BB0", "Ardósia"),
-        new("#C9A27A", "Areia"),
-    ];
+        Palette.Colors.Select(c => new ColorOption(c.Hex, c.Name)).ToList();
 }
 
 /// <summary>
@@ -59,10 +54,22 @@ public sealed partial class GroupEditorViewModel : ObservableObject
     /// <summary>O diálogo deve fechar: true salva, false desiste.</summary>
     public event EventHandler<bool>? CloseRequested;
 
+    /// <summary>Qualquer cor, além da paleta: #RRGGBB (ou #RGB) digitado pelo usuário.</summary>
+    [ObservableProperty]
+    private string _customHex = "";
+
     partial void OnColorChanged(string value)
     {
         foreach (var option in Colors)
             option.IsSelected = string.Equals(option.Hex, value, StringComparison.OrdinalIgnoreCase);
+        if (Palette.NormalizeHex(CustomHex) != value)
+            CustomHex = value;
+    }
+
+    partial void OnCustomHexChanged(string value)
+    {
+        if (Palette.NormalizeHex(value) is { } hex && hex != Color)
+            Color = hex;
     }
 
     [RelayCommand]
@@ -75,4 +82,15 @@ public sealed partial class GroupEditorViewModel : ObservableObject
 
     [RelayCommand]
     private void Cancel() => CloseRequested?.Invoke(this, false);
+}
+
+/// <summary>
+/// Uma cor no submenu "Cor da aba" / "Cor do grupo": nome, amostra e o comando que a aplica (com <see cref="Hex"/> como
+/// parâmetro). Hex null: "Do grupo" ou "Personalizada…", que abre a configuração.
+/// </summary>
+public sealed record ColorMenuItem(string Name, string? Hex, System.Windows.Input.ICommand Command)
+{
+    /// <summary>A paleta inteira com o mesmo comando, entre os itens de antes e de depois.</summary>
+    public static IReadOnlyList<ColorMenuItem> Build(System.Windows.Input.ICommand setColor, IEnumerable<ColorMenuItem> before, ColorMenuItem after) =>
+        [.. before, .. Palette.Colors.Select(c => new ColorMenuItem(c.Name, c.Hex, setColor)), after];
 }

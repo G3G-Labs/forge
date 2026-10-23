@@ -49,6 +49,7 @@ Abas de administrador abrem numa segunda janela, elevada pelo UAC e marcada em a
 | Ir para a aba 1–9 | `Ctrl+1` … `Ctrl+9` |
 | Reiniciar o shell da aba | `Ctrl+Shift+R` |
 | Buscar no histórico unificado | `Ctrl+R` |
+| Copiar seleção / colar no terminal (também pelo clique direito) | `Ctrl+Shift+C` / `Ctrl+Shift+V` |
 | Abrir pasta no VS Code | `Ctrl+Shift+E` |
 | Recolher barra lateral | `Ctrl+B` |
 | Configurações | `Ctrl+,` |

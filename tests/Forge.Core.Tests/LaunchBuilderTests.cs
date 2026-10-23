@@ -190,6 +190,51 @@ public class LaunchBuilderTests
     }
 
     [Fact]
+    public void Mascara_no_CMD_e_pasta_limpa_no_PowerShell_da_distro()
+    {
+        var settings = new AppSettings();
+        settings.Identity.MaskPrompt = true;
+        settings.Identity.UserName = "gabriel";
+        settings.Identity.MachineName = "forge";
+        var cmdInDistro = Cmd with { Id = "wsl:Ubuntu:cmd", SettingsId = "cmd", Distro = "Ubuntu", WslHome = "/home/dev" };
+
+        var cmd = Assert.Single(Build(new WorkspaceTab { Id = "m1" }, cmdInDistro, settings).Scripts).Content;
+        var pwsh = Assert.Single(Build(new WorkspaceTab { Id = "m2" }, PwshInUbuntu, settings).Scripts).Content;
+
+        // CMD: $E é o ESC, $P a pasta, $G o >. Sem máscara, nenhum prompt é definido.
+        Assert.Contains("prompt $E[32mgabriel@forge$E[0m:$E[34m$P$E[0m$G\r\n", cmd);
+        Assert.DoesNotContain("prompt ", Assert.Single(Build(new WorkspaceTab { Id = "m3" }, Cmd).Scripts).Content);
+        // PowerShell: a pasta vem do __forgePromptPath (sem "Microsoft.PowerShell.Core\FileSystem::"), com a home da distro.
+        Assert.Contains("$global:__forgeLinuxHome = '/home/dev'", pwsh);
+        Assert.Contains("$(__forgePromptPath)", pwsh);
+        Assert.Contains("$global:__forgeLinuxHome = $null", Assert.Single(Build(new WorkspaceTab { Id = "m4" }, Pwsh, settings).Scripts).Content);
+    }
+
+    [Theory]
+    [InlineData("#3a7bd5", "#3A7BD5")]
+    [InlineData("3A7BD5", "#3A7BD5")]
+    [InlineData(" #3a7 ", "#33AA77")]
+    [InlineData("#3a7bd", null)]
+    [InlineData("#gggggg", null)]
+    [InlineData("# ab", null)]
+    [InlineData("", null)]
+    [InlineData(null, null)]
+    public void Cor_personalizada_vira_RRGGBB(string? text, string? expected) =>
+        Assert.Equal(expected, Forge.Core.Util.Palette.NormalizeHex(text));
+
+    [Fact]
+    public void Paleta_tem_16_cores_sem_repetir_e_sem_vermelho_nem_amarelo()
+    {
+        var colors = Forge.Core.Util.Palette.Colors;
+
+        Assert.Equal(16, colors.Count);
+        Assert.Equal(16, colors.Select(c => c.Hex).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.All(colors, c => Assert.Equal(c.Hex, Forge.Core.Util.Palette.NormalizeHex(c.Hex)));
+        // Vermelho é erro e amarelo é administrador: ficam fora da paleta.
+        Assert.DoesNotContain(colors, c => c.Hex is "#F2616B" or "#E8B931");
+    }
+
+    [Fact]
     public void Git_Bash_continua_carregando_so_o_bashrc()
     {
         var gitBash = new ShellProfile { Id = "gitbash", Name = "Git Bash", Kind = ShellKind.GitBash, Flavor = ShellFlavor.Bash, Executable = @"C:\Program Files\Git\bin\bash.exe" };

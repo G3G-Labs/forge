@@ -12,7 +12,8 @@ public sealed record ScriptOptions(
     bool FlushHistory,
     string? PromptMask,
     string Nonce,
-    bool LoginProfile = false)
+    bool LoginProfile = false,
+    string? LinuxHome = null)
 {
     /// <summary>A máscara substitui o prompt do shell por "máscara:pasta".</summary>
     public bool HasMask => PromptMask is not null;
@@ -47,14 +48,10 @@ public static class ShellScripts
             Line(sb, "}", "\r\n");
         }
 
-        // Máscara: o prompt vira "máscara pasta>" (verde e azul); sem ela, fica o prompt do perfil do usuário.
+        // Máscara: o prompt vira "máscara:pasta>" (verde e azul); sem ela, fica o prompt do perfil do usuário.
         Line(sb, "$global:__forgeMask = " + (o.HasMask ? PsQuote(o.PromptMask!) : "$null"), "\r\n");
-        Line(sb, "$global:__forgeOriginalPrompt = $function:prompt", "\r\n");
-        Line(sb, "function global:__forgePromptText {", "\r\n");
-        Line(sb, "    if (-not $global:__forgeMask) { return (& $global:__forgeOriginalPrompt) }", "\r\n");
-        Line(sb, "    $e = [string][char]0x1b", "\r\n");
-        Line(sb, "    \"$e[32m$($global:__forgeMask)$e[0m $e[34m$($executionContext.SessionState.Path.CurrentLocation)$e[0m> \"", "\r\n");
-        Line(sb, "}", "\r\n");
+        Line(sb, "$global:__forgeLinuxHome = " + (o.LinuxHome is { } home ? PsQuote(home) : "$null"), "\r\n");
+        sb.Append(PowerShellPrompt.ReplaceLineEndings("\r\n"));
         if (o.Integration)
             sb.Append(PowerShellIntegration.Replace("__FORGE_NONCE__", PsQuote(o.Nonce), StringComparison.Ordinal).ReplaceLineEndings("\r\n"));
         else if (o.HasMask)
@@ -144,6 +141,9 @@ public static class ShellScripts
             Line(sb, cwd.StartsWith(@"\\", StringComparison.Ordinal) ? $"pushd \"{cwd}\"" : $"cd /d \"{cwd}\"", "\r\n");
         foreach (var (name, value) in o.Env)
             Line(sb, $"set \"{name}={value.Replace("%", "%%", StringComparison.Ordinal).Replace("\"", "", StringComparison.Ordinal)}\"", "\r\n");
+        // Máscara: "máscara:pasta>" em verde e azul, como nos outros shells ($E é o ESC, $P a pasta, $G o >).
+        if (o.HasMask)
+            Line(sb, $"prompt $E[32m{o.PromptMask}$E[0m:$E[34m$P$E[0m$G", "\r\n");
         Line(sb, "@echo on", "\r\n");
         return sb.ToString();
     }
@@ -159,6 +159,36 @@ public static class ShellScripts
         : ShQuote(path);
 
     private static void Line(StringBuilder sb, string text, string newline = "\n") => sb.Append(text).Append(newline);
+
+    // A pasta da máscara, como no bash: sem o "Microsoft.PowerShell.Core\FileSystem::" que o PowerShell põe nas pastas de
+    // rede, a pasta da distro (\\wsl.localhost\Debian\home\dev) como no Linux (/home/dev) e a home como ~.
+    private const string PowerShellPrompt = """
+        $global:__forgeOriginalPrompt = $function:prompt
+        function global:__forgePromptPath {
+            $location = $executionContext.SessionState.Path.CurrentLocation
+            if ($location.Provider.Name -ne 'FileSystem') { return "$location" }
+            $path = $location.ProviderPath
+            $base = $HOME
+            $sep = '\'
+            if ($path -match '^\\\\wsl(\.localhost|\$)\\[^\\]+(\\.*)?$') {
+                $path = if ($Matches[2]) { $Matches[2] -replace '\\', '/' } else { '/' }
+                $base = $global:__forgeLinuxHome
+                $sep = '/'
+            }
+            if ($base) {
+                $base = $base.TrimEnd($sep)
+                if ($path -eq $base) { return '~' }
+                if ($path.StartsWith($base + $sep, [StringComparison]::OrdinalIgnoreCase)) { return '~' + $path.Substring($base.Length) }
+            }
+            $path
+        }
+        function global:__forgePromptText {
+            if (-not $global:__forgeMask) { return (& $global:__forgeOriginalPrompt) }
+            $e = [string][char]0x1b
+            "$e[32m$($global:__forgeMask)$e[0m:$e[34m$(__forgePromptPath)$e[0m> "
+        }
+
+        """;
 
     // OSC 133 (A prompt, C comando começou, D terminou com código) e 633 (E texto do comando, P;Cwd= pasta atual).
     // O texto do comando escapa "\" e ";" (e quebras de linha) para não quebrar a sequência. E e P terminam com o nonce

@@ -22,6 +22,19 @@
             <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
             <conv:NullToVisibilityConverter x:Key="InverseNullToVisibility" Invert="True" />
             <conv:EqualsToVisibilityConverter x:Key="EqualsToVisibility" />
+
+            <!--
+                Cabeçalho do item do submenu de cor (aba e grupo), gerado da paleta (ColorMenuItem): amostra + nome. O estilo
+                do item (Forge.ColorMenuItem) é montado no App.OnStartup, por cima do estilo de MenuItem do WPF-UI.
+            -->
+            <DataTemplate x:Key="Forge.ColorMenuHeader">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="12" Height="12" Margin="0,0,10,0" CornerRadius="3" VerticalAlignment="Center"
+                                        Background="{Binding Hex, Converter={StaticResource HexToBrush}}"
+                                        BorderBrush="{DynamicResource Forge.StrongLineBrush}" BorderThickness="1" />
+                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                            </StackPanel>
+            </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

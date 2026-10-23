@@ -45,7 +45,34 @@
             </StackPanel>
             <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,14">
                 <TextBlock Text="Cor" Style="{StaticResource Forge.FieldLabel}" />
-                <StackPanel Orientation="Horizontal">
+                <!-- A paleta quebra em linhas; abaixo, "Do grupo" e qualquer cor por #RRGGBB. -->
+                <ItemsControl ItemsSource="{Binding Colors}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:ColorOption}">
+                            <Button Width="28" Height="28" Margin="0,0,4,4" ToolTip="{Binding Name}" AutomationProperties.Name="{Binding Name}" Cursor="Hand"
+                                    Command="{Binding DataContext.PickColorCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Ring" CornerRadius="8" BorderThickness="2" BorderBrush="Transparent" Padding="3">
+                                            <Border CornerRadius="5" Background="{Binding Hex, Converter={StaticResource HexToBrush}}" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource Forge.TextBrush}" />
+                                            </DataTrigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                     <Button Height="30" Padding="10,0" Margin="0,0,8,0" Command="{Binding UseGroupColorCommand}" Content="Do grupo"
                             ToolTip="Usar a cor do grupo">
                         <Button.Style>
@@ -58,32 +85,9 @@
                             </Style>
                         </Button.Style>
                     </Button>
-                    <ItemsControl ItemsSource="{Binding Colors}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="{x:Type vm:ColorOption}">
-                                <Button Width="30" Height="30" Margin="0,0,6,0" ToolTip="{Binding Name}" AutomationProperties.Name="{Binding Name}" Cursor="Hand"
-                                        Command="{Binding DataContext.PickColorCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
-                                    <Button.Template>
-                                        <ControlTemplate TargetType="Button">
-                                            <Border x:Name="Ring" CornerRadius="8" BorderThickness="2" BorderBrush="Transparent" Padding="3">
-                                                <Border CornerRadius="5" Background="{Binding Hex, Converter={StaticResource HexToBrush}}" />
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                    <Setter TargetName="Ring" Property="BorderBrush" Value="{DynamicResource Forge.TextBrush}" />
-                                                </DataTrigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Button.Template>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <TextBox Width="104" Style="{StaticResource Forge.MonoInput}" Text="{Binding CustomHex, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Qualquer cor: #RRGGBB ou #RGB" AutomationProperties.Name="Cor personalizada" />
+                    <TextBlock Text="personalizada" Margin="8,0,0,0" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource Forge.TextMutedBrush}" />
                 </StackPanel>
             </StackPanel>
 

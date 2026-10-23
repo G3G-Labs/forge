@@ -66,6 +66,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         foreach (var action in ShortcutMap.Actions)
             Shortcuts.Add(new ShortcutRow(action.Label, ShortcutMap.GestureFor(action, settings.Current)));
         Shortcuts.Add(new ShortcutRow("Ir para a aba 1–9", "Ctrl+1…9"));
+        _ = LoadFontsAsync();
     }
 
     private AppSettings S => _settings.Current;
@@ -238,7 +239,57 @@ public sealed partial class SettingsViewModel : ObservableObject
     public string FontFamily
     {
         get => S.Appearance.FontFamily;
-        set => Set(s => s.Appearance.FontFamily = value);
+        set => Set(s => s.Appearance.FontFamily = value, nameof(SelectedFont));
+    }
+
+    // Todas as fontes instaladas, lidas uma vez ao abrir as Configurações (fora da thread da interface).
+    private IReadOnlyList<FontChoice> _allFonts = [];
+
+    /// <summary>As fontes que batem com a busca. A atual sempre aparece, mesmo sem ser monoespaçada.</summary>
+    public ObservableCollection<FontChoice> FontChoices { get; } = [];
+
+    [ObservableProperty]
+    private string _fontSearch = "";
+
+    /// <summary>Terminal pede fonte monoespaçada: as outras ficam escondidas, a não ser que o usuário peça.</summary>
+    [ObservableProperty]
+    private bool _onlyMonospaced = true;
+
+    [ObservableProperty]
+    private bool _isLoadingFonts = true;
+
+    public FontChoice? SelectedFont
+    {
+        get => FontChoices.FirstOrDefault(f => string.Equals(f.Name, FontFamily, StringComparison.OrdinalIgnoreCase));
+        set
+        {
+            if (value is not null && value.Name != FontFamily)
+                FontFamily = value.Name;
+        }
+    }
+
+    partial void OnFontSearchChanged(string value) => FilterFonts();
+
+    partial void OnOnlyMonospacedChanged(bool value) => FilterFonts();
+
+    private async Task LoadFontsAsync()
+    {
+        _allFonts = await Task.Run(InstalledFonts.Read);
+        IsLoadingFonts = false;
+        FilterFonts();
+    }
+
+    private void FilterFonts()
+    {
+        var query = FontSearch.Trim();
+        FontChoices.Clear();
+        foreach (var font in _allFonts)
+        {
+            var current = string.Equals(font.Name, FontFamily, StringComparison.OrdinalIgnoreCase);
+            if ((current || !OnlyMonospaced || font.Monospaced) && font.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+                FontChoices.Add(font);
+        }
+        OnPropertyChanged(nameof(SelectedFont));
     }
 
     public double FontSize
