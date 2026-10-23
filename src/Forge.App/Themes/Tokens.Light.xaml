@@ -1,0 +1,43 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- Tema claro: mesmas chaves do Tokens.xaml. Entra no lugar dele quando o esquema "Forge Claro" é escolhido. -->
+    <SolidColorBrush x:Key="Forge.WindowBrush" Color="#FBFBFC" />
+    <SolidColorBrush x:Key="Forge.ChromeBrush" Color="#F3F4F6" />
+    <SolidColorBrush x:Key="Forge.HeaderBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Forge.RailBrush" Color="#ECEEF1" />
+    <SolidColorBrush x:Key="Forge.RaisedBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Forge.SelectedBrush" Color="#E6E9EF" />
+    <SolidColorBrush x:Key="Forge.InputBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Forge.LineBrush" Color="#E0E3E8" />
+    <SolidColorBrush x:Key="Forge.StrongLineBrush" Color="#D5D9E0" />
+
+    <SolidColorBrush x:Key="Forge.TextBrush" Color="#1B1E24" />
+    <SolidColorBrush x:Key="Forge.TextSecondaryBrush" Color="#4A5160" />
+    <SolidColorBrush x:Key="Forge.TextMutedBrush" Color="#626A78" />
+    <SolidColorBrush x:Key="Forge.TextDisabledBrush" Color="#B8BEC8" />
+
+    <SolidColorBrush x:Key="Forge.AccentBrush" Color="#2F6FEB" />
+    <SolidColorBrush x:Key="Forge.OnAccentBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="Forge.AccentSoftBrush" Color="#1A2F6FEB" />
+
+    <SolidColorBrush x:Key="Forge.RunningBrush" Color="#1F8A55" />
+    <SolidColorBrush x:Key="Forge.RunningSoftBrush" Color="#1A1F8A55" />
+    <SolidColorBrush x:Key="Forge.ErrorBrush" Color="#D23A45" />
+    <SolidColorBrush x:Key="Forge.ErrorSoftBrush" Color="#1AD23A45" />
+    <SolidColorBrush x:Key="Forge.AdminBrush" Color="#9A6A00" />
+    <SolidColorBrush x:Key="Forge.AdminSoftBrush" Color="#26E8B931" />
+    <SolidColorBrush x:Key="Forge.StoppedBrush" Color="#7A818E" />
+
+    <FontFamily x:Key="Forge.FontUi">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="Forge.FontMono">Cascadia Mono, Consolas</FontFamily>
+
+    <sys:Double x:Key="Forge.TitleBarHeight">36</sys:Double>
+    <sys:Double x:Key="Forge.TabHeaderHeight">44</sys:Double>
+    <sys:Double x:Key="Forge.StatusBarHeight">24</sys:Double>
+    <sys:Double x:Key="Forge.SidebarWidth">248</sys:Double>
+    <sys:Double x:Key="Forge.RowHeight">30</sys:Double>
+
+</ResourceDictionary>

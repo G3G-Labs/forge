@@ -1,0 +1,332 @@
+<Window
+    x:Class="Forge.App.Views.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:vm="clr-namespace:Forge.App.ViewModels"
+    mc:Ignorable="d"
+    d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
+    Title="Configurações" Width="920" Height="656" MinWidth="760" MinHeight="520"
+    WindowStartupLocation="CenterOwner" ShowInTaskbar="False" ResizeMode="CanResizeWithGrip"
+    Background="{DynamicResource Forge.ChromeBrush}" Foreground="{DynamicResource Forge.TextBrush}"
+    FontFamily="{DynamicResource Forge.FontUi}" FontSize="13">
+
+    <!-- O único modal do app: configurações globais. Tudo salva na hora, em settings.json. -->
+    <Window.InputBindings>
+        <KeyBinding Key="Escape" Command="ApplicationCommands.Close" />
+    </Window.InputBindings>
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Close" Executed="OnCloseExecuted" />
+    </Window.CommandBindings>
+
+    <Window.Resources>
+        <Style x:Key="Row" TargetType="DockPanel">
+            <Setter Property="MinHeight" Value="48" />
+            <Setter Property="LastChildFill" Value="True" />
+        </Style>
+        <Style x:Key="Section" TargetType="StackPanel">
+            <Setter Property="Margin" Value="0,0,0,18" />
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" Height="44" Padding="20,0" BorderBrush="{DynamicResource Forge.LineBrush}" BorderThickness="0,1,0,0">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource Forge.SecondaryButton}" Height="28" Content="Abrir settings.json"
+                        Command="{Binding OpenSettingsFileCommand}" />
+                <TextBlock Text="Salvo automaticamente em settings.json · JSON legível, pode ser versionado" VerticalAlignment="Center"
+                           FontSize="12" Foreground="{DynamicResource Forge.TextMutedBrush}" />
+            </DockPanel>
+        </Border>
+
+        <!-- Seções -->
+        <ListBox DockPanel.Dock="Left" Width="196" Padding="8,12" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section}"
+                 Background="{DynamicResource Forge.RailBrush}" BorderBrush="{DynamicResource Forge.LineBrush}" BorderThickness="0,0,1,0" />
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="28,20">
+            <Grid>
+                <!-- Geral -->
+                <StackPanel Visibility="{Binding Section, Converter={StaticResource EqualsToVisibility}, ConverterParameter=Geral}">
+                    <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Text="INICIALIZAÇÃO" Style="{StaticResource Forge.SectionLabel}" />
+                        <ui:ToggleSwitch IsChecked="{Binding StartWithWindows}" Content="Iniciar com o Windows" Margin="0,6" />
+                        <ui:ToggleSwitch IsChecked="{Binding RestoreWindow}" Content="Restaurar tamanho, posição e aba ativa" Margin="0,6" />
+                    </StackPanel>
+                    <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Text="RESTAURAÇÃO DAS ABAS" Style="{StaticResource Forge.SectionLabel}" />
+                        <ui:ToggleSwitch IsChecked="{Binding RestoreLastFolder}" Content="Ao reabrir, voltar para a última pasta visitada" Margin="0,6" />
+                        <TextBlock Style="{StaticResource Forge.Hint}"
+                                   Text="Desligado: cada aba volta para a pasta inicial configurada. Só o comando de abas com &quot;iniciar automaticamente&quot; é executado." />
+                    </StackPanel>
+                    <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Text="HISTÓRICO E LOG" Style="{StaticResource Forge.SectionLabel}" />
+                        <DockPanel Margin="0,6">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource Forge.SecondaryButton}" Height="30" Content="Limpar histórico"
+                                    Command="{Binding ClearHistoryCommand}" />
+                            <TextBox DockPanel.Dock="Right" Width="96" Margin="12,0" Style="{StaticResource Forge.Input}" Height="30"
+                                     Text="{Binding HistoryLimit, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Limite do histórico" />
+                            <TextBlock Text="Limite do histórico unificado (linhas em history.jsonl)" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <ui:ToggleSwitch IsChecked="{Binding FileLog}" Content="Log em arquivo (um por aba, rotação a cada 5 MB)" Margin="0,6" />
+                    </StackPanel>
+                    <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Text="PRIVACIDADE E DADOS" Style="{StaticResource Forge.SectionLabel}" />
+                        <ui:ToggleSwitch IsChecked="{Binding CheckUpdates}" Content="Verificar atualizações (a única chamada de rede; sem telemetria)" Margin="0,6" />
+                        <DockPanel Margin="0,6">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource Forge.SecondaryButton}" Height="30" Content="Abrir pasta"
+                                    Command="{Binding OpenDataFolderCommand}" />
+                            <TextBlock Text="{Binding DataFolder}" VerticalAlignment="Center" FontFamily="{DynamicResource Forge.FontMono}" FontSize="12"
+                                       Foreground="{DynamicResource Forge.TextSecondaryBrush}" />
+                        </DockPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Shells e perfis -->
+                <StackPanel Visibility="{Binding Section, Converter={StaticResource EqualsToVisibility}, ConverterParameter='Shells e perfis'}">
+                    <TextBlock Text="SHELLS DETECTADOS E PERFIS" Style="{StaticResource Forge.SectionLabel}" />
+                    <TextBlock Style="{StaticResource Forge.Hint}" Margin="0,0,0,10"
+                               Text="Encontrados no registro, no PATH e nas distros WSL instaladas. A integração de shell alimenta o estado da aba e o Ctrl+R." />
+                    <ItemsControl ItemsSource="{Binding ShellRows}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:ShellRowViewModel}">
+                                <Border BorderBrush="{DynamicResource Forge.LineBrush}" BorderThickness="0,0,0,1" Padding="0,8">
+                                    <DockPanel>
+                                        <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding Integration}" Content="Integração"
+                                                         Visibility="{Binding CanIntegrate, Converter={StaticResource BoolToVisibility}}" />
+                                        <Button DockPanel.Dock="Right" Margin="0,0,12,0" Style="{StaticResource Forge.SecondaryButton}" Height="28" Content="Tornar padrão"
+                                                Command="{Binding DataContext.SetDefaultShellCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                CommandParameter="{Binding}"
+                                                Visibility="{Binding IsDefault, Converter={StaticResource InverseBoolToVisibility}}" />
+                                        <TextBlock DockPanel.Dock="Right" Margin="0,0,12,0" Text="Padrão" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Forge.AccentBrush}"
+                                                   Visibility="{Binding IsDefault, Converter={StaticResource BoolToVisibility}}" />
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Profile.Name}" />
+                                            <TextBlock Text="{Binding Profile.Executable}" FontFamily="{DynamicResource Forge.FontMono}" FontSize="11.5"
+                                                       TextTrimming="CharacterEllipsis" Foreground="{DynamicResource Forge.TextMutedBrush}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="NOVO PERFIL PERSONALIZADO" Style="{StaticResource Forge.SectionLabel}" Margin="0,18,0,6" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Nome" Style="{StaticResource Forge.FieldLabel}" />
+                            <TextBox Style="{StaticResource Forge.Input}" Text="{Binding NewProfileName}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Executável" Style="{StaticResource Forge.FieldLabel}" />
+                            <TextBox Style="{StaticResource Forge.MonoInput}" Text="{Binding NewProfileExecutable}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="Argumentos" Style="{StaticResource Forge.FieldLabel}" />
+                            <TextBox Style="{StaticResource Forge.MonoInput}" Text="{Binding NewProfileArguments}" />
+                        </StackPanel>
+                    </Grid>
+                    <Button Style="{StaticResource Forge.PrimaryButton}" HorizontalAlignment="Right" Margin="0,10,0,0" Content="Adicionar perfil"
+                            Command="{Binding AddProfileCommand}" />
+                </StackPanel>
+
+                <!-- Aparência -->
+                <StackPanel Visibility="{Binding Section, Converter={StaticResource EqualsToVisibility}, ConverterParameter=Aparência}">
+                    <StackPanel Style="{StaticResource Section}">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource Forge.SecondaryButton}" Height="28"
+                                    Content="Importar do Windows Terminal (.json)…" Command="{Binding ImportSchemeCommand}" />
+                            <TextBlock Text="TEMA" Style="{StaticResource Forge.SectionLabel}" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <ComboBox Margin="0,8,0,0" ItemsSource="{Binding Schemes}" SelectedItem="{Binding Scheme}" DisplayMemberPath="Name" Height="32" />
+                        <TextBlock Margin="0,6,0,0" Style="{StaticResource Forge.Hint}" Text="Forge Claro também deixa a janela clara. As mudanças valem em todas as abas na hora." />
+                    </StackPanel>
+                    <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Text="FONTE" Style="{StaticResource Forge.SectionLabel}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*" />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Família" Style="{StaticResource Forge.FieldLabel}" />
+                                <TextBox Style="{StaticResource Forge.Input}" Text="{Binding FontFamily, UpdateSourceTrigger=LostFocus}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Tamanho" Style="{StaticResource Forge.FieldLabel}" />
+                                <TextBox Style="{StaticResource Forge.Input}" Text="{Binding FontSize, UpdateSourceTrigger=LostFocus}" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                    <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Text="CURSOR" Style="{StaticResource Forge.SectionLabel}" />
+                        <StackPanel Orientation="Horizontal">
+                            <ComboBox Width="160" Height="32" ItemsSource="{Binding CursorShapes}" SelectedItem="{Binding Cursor}" />
+                            <ui:ToggleSwitch Margin="16,0,0,0" IsChecked="{Binding CursorBlink}" Content="Piscar" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Terminal: identificação e auxílios -->
+                <StackPanel Visibility="{Binding Section, Converter={StaticResource EqualsToVisibility}, ConverterParameter=Terminal}">
+                    <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Text="IDENTIFICAÇÃO" Style="{StaticResource Forge.SectionLabel}" />
+                        <StackPanel Orientation="Horizontal">
+                            <StackPanel Width="180">
+                                <TextBlock Text="Nome de usuário exibido" Style="{StaticResource Forge.FieldLabel}" />
+                                <TextBox Style="{StaticResource Forge.Input}" Text="{Binding IdentityUser, UpdateSourceTrigger=LostFocus}" />
+                            </StackPanel>
+                            <StackPanel Width="180" Margin="12,0">
+                                <TextBlock Text="Nome da máquina" Style="{StaticResource Forge.FieldLabel}" />
+                                <TextBox Style="{StaticResource Forge.Input}" Text="{Binding IdentityMachine, UpdateSourceTrigger=LostFocus}" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Aparece como" Style="{StaticResource Forge.FieldLabel}" />
+                                <TextBlock Text="{Binding IdentityPreview}" Height="32" Padding="0,7,0,0" FontFamily="{DynamicResource Forge.FontMono}"
+                                           Foreground="{DynamicResource Forge.RunningBrush}" />
+                            </StackPanel>
+                        </StackPanel>
+                        <ui:ToggleSwitch IsChecked="{Binding ShowIdentity}" Content="Mostrar no cabeçalho da aba" Margin="0,12,0,6" />
+                        <ui:ToggleSwitch IsChecked="{Binding InjectPowerShell}" Content="Injetar no prompt do PowerShell" Margin="0,6" />
+                        <ui:ToggleSwitch IsChecked="{Binding InjectBash}" Content="Injetar no prompt do Bash e zsh" Margin="0,6" />
+                    </StackPanel>
+                    <StackPanel Style="{StaticResource Section}">
+                        <TextBlock Text="AUXÍLIOS EM TODOS OS SHELLS" Style="{StaticResource Forge.SectionLabel}" />
+                        <ui:ToggleSwitch IsChecked="{Binding CaseInsensitiveCompletion}" Content="Autocomplete ignora maiúsculas (bash e zsh: cd doc + Tab → Documentos/)" Margin="0,6" />
+                        <ui:ToggleSwitch IsChecked="{Binding FlushHistory}" Content="Histórico do shell gravado a cada comando (seta para cima depois do reinício)" Margin="0,6" />
+                        <ui:ToggleSwitch IsChecked="{Binding ShellIntegration}" Content="Integração de shell (estado da aba e histórico unificado)" Margin="0,6" />
+                        <ui:ToggleSwitch IsChecked="{Binding ClickableLinks}" Content="Links clicáveis (Ctrl+clique)" Margin="0,6" />
+                        <TextBlock Margin="0,8,0,0" Style="{StaticResource Forge.Hint}"
+                                   Text="Tudo é injetado por argumentos e arquivos do próprio app. Nada é gravado em .bashrc, .zshrc, .inputrc ou no perfil do PowerShell." />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Atalhos -->
+                <StackPanel Visibility="{Binding Section, Converter={StaticResource EqualsToVisibility}, ConverterParameter=Atalhos}">
+                    <TextBlock Text="ATALHOS" Style="{StaticResource Forge.SectionLabel}" />
+                    <ItemsControl ItemsSource="{Binding Shortcuts}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:ShortcutRow}">
+                                <Border BorderBrush="{DynamicResource Forge.LineBrush}" BorderThickness="0,0,0,1" Height="34">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Right" Padding="6,1" CornerRadius="4" VerticalAlignment="Center"
+                                                Background="{DynamicResource Forge.RaisedBrush}" BorderBrush="{DynamicResource Forge.StrongLineBrush}" BorderThickness="1,1,1,2">
+                                            <TextBlock Text="{Binding Gesture}" FontSize="11.5" />
+                                        </Border>
+                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Margin="0,10,0,0" Style="{StaticResource Forge.Hint}"
+                               Text="Para remapear, edite &quot;shortcuts&quot; no settings.json (ex.: &quot;NewTab&quot;: &quot;Ctrl+Shift+T&quot;)." />
+                </StackPanel>
+
+                <!-- Sobre: o Forge e a empresa criadora -->
+                <StackPanel DataContext="{Binding About}" Visibility="{Binding DataContext.Section, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EqualsToVisibility}, ConverterParameter=Sobre}">
+                    <DockPanel Margin="0,0,0,18">
+                        <Image DockPanel.Dock="Left" Source="/Assets/logo.png" Width="56" Height="56" RenderOptions.BitmapScalingMode="HighQuality" />
+
+                        <StackPanel Margin="16,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Product}" FontSize="20" FontWeight="Bold" />
+                            <TextBlock Text="{Binding Tagline}" Foreground="{DynamicResource Forge.TextSecondaryBrush}" />
+                            <TextBlock FontSize="12" Foreground="{DynamicResource Forge.TextMutedBrush}">
+                                <Run Text="Versão " /><Run Text="{Binding Version, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Platform, Mode=OneWay}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </DockPanel>
+
+                    <TextBlock Text="DESENVOLVIDO POR" Style="{StaticResource Forge.SectionLabel}" />
+                    <!-- Logo da G3G Labs, vazado: o "G" fica na cor do fundo da janela. -->
+                    <DockPanel Margin="0,4,0,14">
+                        <Viewbox DockPanel.Dock="Left" Width="72" Height="72">
+                            <Canvas Width="540" Height="540">
+                                <Path Data="M0,0 H270 L0,270 Z">
+                                    <Path.Fill>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#F7CB1F" Offset="0" />
+                                            <GradientStop Color="#F4A11A" Offset="0.55" />
+                                        </LinearGradientBrush>
+                                    </Path.Fill>
+                                </Path>
+                                <Path Data="M270,0 H540 V270 Z">
+                                    <Path.Fill>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#4A78BF" Offset="0" />
+                                            <GradientStop Color="#15B0D6" Offset="0.5" />
+                                            <GradientStop Color="#17B3A3" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Path.Fill>
+                                </Path>
+                                <Path Data="M0,270 L270,540 H0 Z">
+                                    <Path.Fill>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#4A78BF" Offset="0" />
+                                            <GradientStop Color="#15B0D6" Offset="0.5" />
+                                            <GradientStop Color="#17B3A3" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Path.Fill>
+                                </Path>
+                                <Path Data="M270,270 H540 V540 H270 L405,405 Z">
+                                    <Path.Fill>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#F7CB1F" Offset="0" />
+                                            <GradientStop Color="#F4A11A" Offset="0.45" />
+                                            <GradientStop Color="#E84C46" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Path.Fill>
+                                </Path>
+                            </Canvas>
+                        </Viewbox>
+                        <StackPanel Margin="20,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Company}" FontSize="18" FontWeight="Bold" />
+                            <TextBlock Text="{Binding CompanyTagline}" TextWrapping="Wrap" Foreground="{DynamicResource Forge.TextSecondaryBrush}" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <ItemsControl ItemsSource="{Binding Links}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="2" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:CompanyLink}">
+                                <Border BorderBrush="{DynamicResource Forge.LineBrush}" BorderThickness="0,0,0,1" Height="44" Margin="0,0,24,0">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Left" Width="84" Text="{Binding Label}" FontSize="12" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource Forge.TextMutedBrush}" />
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource Forge.SmallIconButton}" ToolTip="Copiar"
+                                                Command="{Binding DataContext.CopyCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"
+                                                Visibility="{Binding CanCopy, Converter={StaticResource BoolToVisibility}}">
+                                            <ui:SymbolIcon Symbol="Copy24" FontSize="12" />
+                                        </Button>
+                                        <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                            <Hyperlink Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"
+                                                       Foreground="{DynamicResource Forge.AccentBrush}">
+                                                <Run Text="{Binding Value, Mode=OneWay}" />
+                                            </Hyperlink>
+                                        </TextBlock>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="{Binding Copyright}" Margin="0,18,0,0" FontSize="12" Foreground="{DynamicResource Forge.TextMutedBrush}" />
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

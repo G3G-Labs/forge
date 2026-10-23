@@ -1,0 +1,21 @@
+<Project>
+
+  <!-- Vale para todos os projetos da solução. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Contrato de qualidade do escopo: nullable ligado e avisos do compilador e dos analisadores como erro. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <SatelliteResourceLanguages>pt-BR;en</SatelliteResourceLanguages>
+
+    <Version>0.1.0</Version>
+    <Product>Forge</Product>
+    <Company>G3G Labs</Company>
+    <Authors>G3G Labs</Authors>
+    <Copyright>© 2026 G3G Labs</Copyright>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,21 @@
+# Build
+bin/
+obj/
+publish/
+artifacts/
+TestResults/
+*.nupkg
+
+# IDEs
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+
+# Sistema
+Thumbs.db
+Desktop.ini
+.DS_Store
+*:Zone.Identifier

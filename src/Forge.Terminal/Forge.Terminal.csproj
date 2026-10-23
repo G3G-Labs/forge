@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A borda com o Windows: o controle nativo do Windows Terminal (C++, ConPTY + renderização DirectWrite), Job
+    Objects, UAC, inicialização com o Windows e a detecção de shells pelo registro. O App não conhece o pacote do
+    terminal: tudo passa pelo TerminalSession, então o motor pode ser trocado (C# próprio ou C++ via DLL) sem
+    mexer nas telas.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Forge.Terminal</RootNamespace>
+    <!-- P/Invoke gerado em tempo de compilação (LibraryImport) para os Job Objects. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Forge.Core\Forge.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Terminal embutido: controle do próprio Windows Terminal (renderização nativa + ConPTY), sem navegador. -->
+    <PackageReference Include="EasyWindowsTerminalControl" Version="1.0.38" />
+  </ItemGroup>
+
+</Project>

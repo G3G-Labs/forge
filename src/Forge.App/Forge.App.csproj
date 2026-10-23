@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- As telas: WPF + MVVM. Conhece o Core (regras) e o Terminal (a borda com o Windows); nada abaixo conhece o App. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Forge.App</RootNamespace>
+    <AssemblyName>Forge</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+
+  <!--
+    Publicação em um único .exe, como o WSL Vision. WPF não suporta trimming (NETSDK1168).
+      dotnet publish src/Forge.App -c Release                  → portátil: inclui o .NET, roda em qualquer Windows (maior)
+      dotnet publish src/Forge.App -c Release -p:Edition=Lite  → leve: usa o .NET Desktop Runtime 10 instalado (poucos MB)
+    Sem compressão de propósito: comprimido, o .NET descompacta tudo na RAM ao abrir;
+    sem compressão, as bibliotecas são mapeadas do disco e só o que é usado ocupa memória.
+  -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>none</DebugType>
+    <SelfContained Condition="'$(Edition)' != 'Lite'">true</SelfContained>
+    <SelfContained Condition="'$(Edition)' == 'Lite'">false</SelfContained>
+  </PropertyGroup>
+
+  <!-- Menos memória e menos threads em segundo plano: o contrato de leveza pede menos de 150 MB com 10 abas. -->
+  <PropertyGroup>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Forge.Core\Forge.Core.csproj" />
+    <ProjectReference Include="..\Forge.Terminal\Forge.Terminal.csproj" />
+  </ItemGroup>
+
+  <!-- Marca: gerada por tools/gerar-logo.js (fonte em assets/brand). -->
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\logo.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+</Project>

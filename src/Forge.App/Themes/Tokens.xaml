@@ -1,0 +1,48 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!--
+        Tokens do tema escuro (padrão), os mesmos do canvas "Forge — Telas do MVP". As telas usam sempre
+        DynamicResource: o tema claro (Tokens.Light.xaml) troca este dicionário inteiro em tempo de execução.
+        Cores com propósito: o grupo marca as abas, vermelho só para erro, amarelo só para administrador.
+    -->
+    <SolidColorBrush x:Key="Forge.WindowBrush" Color="#111214" />
+    <SolidColorBrush x:Key="Forge.ChromeBrush" Color="#18191D" />
+    <SolidColorBrush x:Key="Forge.HeaderBrush" Color="#16171A" />
+    <SolidColorBrush x:Key="Forge.RailBrush" Color="#141518" />
+    <SolidColorBrush x:Key="Forge.RaisedBrush" Color="#212329" />
+    <SolidColorBrush x:Key="Forge.SelectedBrush" Color="#2A2D34" />
+    <SolidColorBrush x:Key="Forge.InputBrush" Color="#0B0C0E" />
+    <SolidColorBrush x:Key="Forge.LineBrush" Color="#2B2E35" />
+    <SolidColorBrush x:Key="Forge.StrongLineBrush" Color="#353943" />
+
+    <SolidColorBrush x:Key="Forge.TextBrush" Color="#E7E9EE" />
+    <SolidColorBrush x:Key="Forge.TextSecondaryBrush" Color="#A6ADBA" />
+    <SolidColorBrush x:Key="Forge.TextMutedBrush" Color="#8C93A1" />
+    <SolidColorBrush x:Key="Forge.TextDisabledBrush" Color="#4A505B" />
+
+    <SolidColorBrush x:Key="Forge.AccentBrush" Color="#8AB4FF" />
+    <SolidColorBrush x:Key="Forge.OnAccentBrush" Color="#0E1420" />
+    <SolidColorBrush x:Key="Forge.AccentSoftBrush" Color="#228AB4FF" />
+
+    <SolidColorBrush x:Key="Forge.RunningBrush" Color="#4CC38A" />
+    <SolidColorBrush x:Key="Forge.RunningSoftBrush" Color="#1F4CC38A" />
+    <SolidColorBrush x:Key="Forge.ErrorBrush" Color="#F2616B" />
+    <SolidColorBrush x:Key="Forge.ErrorSoftBrush" Color="#1FF2616B" />
+    <SolidColorBrush x:Key="Forge.AdminBrush" Color="#E8B931" />
+    <SolidColorBrush x:Key="Forge.AdminSoftBrush" Color="#26E8B931" />
+    <SolidColorBrush x:Key="Forge.StoppedBrush" Color="#7A818E" />
+
+    <FontFamily x:Key="Forge.FontUi">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="Forge.FontMono">Cascadia Mono, Consolas</FontFamily>
+
+    <!-- Medidas fixas do layout. -->
+    <sys:Double x:Key="Forge.TitleBarHeight">36</sys:Double>
+    <sys:Double x:Key="Forge.TabHeaderHeight">44</sys:Double>
+    <sys:Double x:Key="Forge.StatusBarHeight">24</sys:Double>
+    <sys:Double x:Key="Forge.SidebarWidth">248</sys:Double>
+    <sys:Double x:Key="Forge.RowHeight">30</sys:Double>
+
+</ResourceDictionary>

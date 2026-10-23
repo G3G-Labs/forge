@@ -1,0 +1,14 @@
+<UserControl
+    x:Class="Forge.App.Views.TerminalArea"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{DynamicResource Forge.WindowBrush}">
+
+    <!-- O terminal ocupa todo o espaço restante, sem bordas nem painéis extras. Um controle por aba iniciada. -->
+    <Grid>
+        <Grid x:Name="TermHost" />
+        <TextBlock x:Name="EmptyText" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"
+                   Foreground="{DynamicResource Forge.TextMutedBrush}"
+                   Text="Nenhuma aba aberta.&#10;Ctrl+T abre uma aba no grupo atual; Ctrl+Shift+G cria um grupo." />
+    </Grid>
+</UserControl>

@@ -1,0 +1,34 @@
+<UserControl
+    x:Class="Forge.App.Views.StatusBar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:vm="clr-namespace:Forge.App.ViewModels"
+    mc:Ignorable="d"
+    d:DataContext="{d:DesignInstance Type=vm:MainWindowViewModel}">
+
+    <!-- Barra de status (24 px): administrador, shell, pasta atual, branch e alterações pendentes. -->
+    <Border Background="{DynamicResource Forge.ChromeBrush}" BorderBrush="{DynamicResource Forge.LineBrush}" BorderThickness="0,1,0,0">
+        <DockPanel Margin="12,0" TextElement.FontSize="12" TextElement.Foreground="{DynamicResource Forge.TextSecondaryBrush}">
+            <TextBlock DockPanel.Dock="Right" Text="Salvo automaticamente" VerticalAlignment="Center" Foreground="{DynamicResource Forge.TextMutedBrush}" />
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" DataContext="{Binding SelectedTab}"
+                        Visibility="{Binding Converter={StaticResource NullToVisibility}}">
+                <StackPanel Orientation="Horizontal" Margin="0,0,16,0"
+                            Visibility="{Binding IsElevated, Converter={StaticResource BoolToVisibility}}">
+                    <ui:SymbolIcon Symbol="Shield24" Filled="True" FontSize="11" Foreground="{DynamicResource Forge.AdminBrush}" />
+                    <TextBlock Text="Administrador" Margin="5,0,0,0" FontWeight="SemiBold" Foreground="{DynamicResource Forge.AdminBrush}" />
+                </StackPanel>
+                <TextBlock Text="{Binding ShellName}" Margin="0,0,16,0" />
+                <TextBlock Text="{Binding Folder}" Margin="0,0,16,0" FontFamily="{DynamicResource Forge.FontMono}" FontSize="11.5" />
+                <StackPanel Orientation="Horizontal" Margin="0,0,16,0" ToolTip="Commits à frente e atrás do remoto">
+                    <ui:SymbolIcon Symbol="Branch24" FontSize="12" Visibility="{Binding HasGit, Converter={StaticResource BoolToVisibility}}" />
+                    <TextBlock Text="{Binding GitSummary}" Margin="5,0,0,0" />
+                </StackPanel>
+                <TextBlock Text="{Binding ChangesText}" ToolTip="Alterações não commitadas" />
+            </StackPanel>
+        </DockPanel>
+    </Border>
+</UserControl>

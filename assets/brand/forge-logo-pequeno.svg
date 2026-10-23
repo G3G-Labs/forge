@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Forge</title>
+  <path fill="#A1BFFF" d="M512 612 L592 58 L690 176 Z"/>
+  <path fill="#809FEB" d="M512 612 L690 176 L782 300 Z"/>
+  <path fill="#7695F7" d="M512 612 L782 300 L852 432 Z"/>
+  <path fill="#6073DD" d="M512 612 L852 432 L884 574 Z"/>
+  <path fill="#5B68E3" d="M512 612 L884 574 L866 724 Z"/>
+  <path fill="#4D57CA" d="M512 612 L866 724 L796 852 Z"/>
+  <path fill="#4F5AD6" d="M512 612 L796 852 L674 938 Z"/>
+  <path fill="#4E58CC" d="M512 612 L674 938 L512 968 Z"/>
+  <path fill="#5D6BE6" d="M512 612 L512 968 L350 938 Z"/>
+  <path fill="#6379DF" d="M512 612 L350 938 L228 852 Z"/>
+  <path fill="#7A9CFA" d="M512 612 L228 852 L158 724 Z"/>
+  <path fill="#83A2EB" d="M512 612 L158 724 L140 574 Z"/>
+  <path fill="#9EBDFF" d="M512 612 L140 574 L168 432 Z"/>
+  <path fill="#9FB8ED" d="M512 612 L168 432 L238 316 Z"/>
+  <path fill="#B4CDFF" d="M512 612 L238 316 L352 168 Z"/>
+  <path fill="#9FB8ED" d="M512 612 L352 168 L446 286 Z"/>
+  <path fill="#A6C3FF" d="M512 612 L446 286 L592 58 Z"/>
+  <circle cx="512" cy="612" r="196" fill="#121834"/>
+  <path fill="#1D2550" d="M650.6 473.4 A196 196 0 0 0 373.4 750.6 Z"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="76" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M442 516 L542 612 L442 708"/>
+  </g>
+</svg>

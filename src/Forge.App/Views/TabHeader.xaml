@@ -1,0 +1,89 @@
+<UserControl
+    x:Class="Forge.App.Views.TabHeader"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:vm="clr-namespace:Forge.App.ViewModels"
+    mc:Ignorable="d"
+    d:DataContext="{d:DesignInstance Type=vm:MainWindowViewModel}">
+
+    <!-- Cabeçalho da aba (44 px): nome, shell e comando, estado e as ações de um clique. -->
+    <Border Height="44" Background="{DynamicResource Forge.HeaderBrush}" BorderBrush="{DynamicResource Forge.LineBrush}" BorderThickness="0,0,0,1"
+            Visibility="{Binding SelectedTab, Converter={StaticResource NullToVisibility}}">
+        <DockPanel Margin="16,0,8,0" DataContext="{Binding SelectedTab}" d:DataContext="{d:DesignInstance Type=vm:TabViewModel}">
+
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="{Binding DataContext.Identity, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                           FontFamily="{DynamicResource Forge.FontMono}" FontSize="12" Margin="0,0,10,0" VerticalAlignment="Center"
+                           Foreground="{DynamicResource Forge.TextMutedBrush}"
+                           Visibility="{Binding DataContext.ShowIdentity, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}" />
+                <Border Width="1" Height="20" Margin="0,0,6,0" Background="{DynamicResource Forge.LineBrush}" />
+
+                <!-- Parada com comando: botão Iniciar em destaque. Rodando: reiniciar e parar. -->
+                <Button Style="{StaticResource Forge.PrimaryButton}" Height="30" Padding="12,0" Margin="0,0,4,0" Command="{Binding StartCommand}"
+                        ToolTip="Iniciar comando (Ctrl+Shift+R)"
+                        Visibility="{Binding IsRunning, Converter={StaticResource InverseBoolToVisibility}}">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon Symbol="Play24" Filled="True" FontSize="12" />
+                        <TextBlock Text="Iniciar" Margin="6,0,0,0" />
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource Forge.IconButton}" Command="{Binding RestartCommand}" ToolTip="Reiniciar (Ctrl+Shift+R)"
+                        AutomationProperties.Name="Reiniciar comando" Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}}">
+                    <ui:SymbolIcon Symbol="ArrowClockwise24" FontSize="16" />
+                </Button>
+                <Button Style="{StaticResource Forge.IconButton}" Command="{Binding StopCommand}" ToolTip="Parar (Ctrl+C)"
+                        AutomationProperties.Name="Parar comando">
+                    <ui:SymbolIcon Symbol="Stop24" Filled="True" FontSize="13" />
+                </Button>
+                <Border Width="1" Height="20" Margin="4,0" Background="{DynamicResource Forge.LineBrush}" />
+                <Button Style="{StaticResource Forge.IconButton}" Command="{Binding OpenInVsCodeCommand}" ToolTip="Abrir no VS Code (Ctrl+Shift+E)"
+                        AutomationProperties.Name="Abrir no VS Code">
+                    <ui:SymbolIcon Symbol="Code24" FontSize="16" />
+                </Button>
+                <Button Style="{StaticResource Forge.IconButton}" Command="{Binding OpenInExplorerCommand}" ToolTip="Abrir no Explorer"
+                        AutomationProperties.Name="Abrir no Explorer">
+                    <ui:SymbolIcon Symbol="Folder24" FontSize="16" />
+                </Button>
+                <Button Style="{StaticResource Forge.IconButton}" ToolTip="Mais ações" AutomationProperties.Name="Mais ações" Click="OnMoreClick">
+                    <ui:SymbolIcon Symbol="MoreHorizontal24" FontSize="16" />
+                    <Button.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Duplicar aba" Command="{Binding DuplicateCommand}" />
+                            <MenuItem Header="Copiar caminho" Command="{Binding CopyPathCommand}" />
+                            <MenuItem Header="Abrir como administrador" Command="{Binding OpenAsAdminCommand}"
+                                      Visibility="{Binding IsElevated, Converter={StaticResource InverseBoolToVisibility}}" />
+                            <MenuItem Header="Renomear" InputGestureText="F2" Command="{Binding BeginRenameCommand}" />
+                            <MenuItem Header="Configurar aba…" Command="{Binding ConfigureCommand}" />
+                            <Separator />
+                            <MenuItem Header="Cor da aba">
+                                <MenuItem Header="Do grupo" Command="{Binding SetColorCommand}" CommandParameter="{x:Null}" />
+                                <MenuItem Header="Azul" Command="{Binding SetColorCommand}" CommandParameter="#4F8EF7" />
+                                <MenuItem Header="Violeta" Command="{Binding SetColorCommand}" CommandParameter="#A47CF3" />
+                                <MenuItem Header="Turquesa" Command="{Binding SetColorCommand}" CommandParameter="#2BB5B0" />
+                                <MenuItem Header="Rosa" Command="{Binding SetColorCommand}" CommandParameter="#E58AC1" />
+                                <MenuItem Header="Ardósia" Command="{Binding SetColorCommand}" CommandParameter="#8A9BB0" />
+                                <MenuItem Header="Areia" Command="{Binding SetColorCommand}" CommandParameter="#C9A27A" />
+                            </MenuItem>
+                            <Separator />
+                            <MenuItem Header="Fechar aba" InputGestureText="Ctrl+W" Command="{Binding CloseCommand}" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
+                </Button>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Width="10" Height="10" CornerRadius="3" Background="{Binding Color, Converter={StaticResource HexToBrush}}" />
+                <TextBlock Text="{Binding Name}" Margin="10,0,0,0" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                           ToolTip="Duplo clique na barra lateral ou F2 para renomear" />
+                <TextBlock Text="{Binding Subtitle}" Margin="10,0,0,0" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           Foreground="{DynamicResource Forge.TextMutedBrush}" />
+                <Border Margin="10,0,0,0" Style="{StaticResource Forge.StatePill}">
+                    <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="Medium" VerticalAlignment="Center" />
+                </Border>
+            </StackPanel>
+        </DockPanel>
+    </Border>
+</UserControl>

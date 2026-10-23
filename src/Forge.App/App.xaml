@@ -1,0 +1,27 @@
+<Application
+    x:Class="Forge.App.App"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:conv="clr-namespace:Forge.App.Converters"
+    ShutdownMode="OnMainWindowClose">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ui:ThemesDictionary Theme="Dark" />
+                <ui:ControlsDictionary />
+                <!-- O índice 2 é trocado pelo Tokens.Light.xaml no tema claro (App.ApplyChromeTheme). -->
+                <ResourceDictionary Source="Themes/Tokens.xaml" />
+                <ResourceDictionary Source="Themes/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <conv:HexToBrushConverter x:Key="HexToBrush" />
+            <conv:HexToGuideBrushConverter x:Key="HexToGuideBrush" />
+            <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+            <conv:BoolToVisibilityConverter x:Key="InverseBoolToVisibility" Invert="True" />
+            <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+            <conv:NullToVisibilityConverter x:Key="InverseNullToVisibility" Invert="True" />
+            <conv:EqualsToVisibilityConverter x:Key="EqualsToVisibility" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

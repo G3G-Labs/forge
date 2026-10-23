@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Forge</title>
+  <path fill="#FFFFFF" fill-rule="evenodd" d="M592 58 L690 176 L782 300 L852 432 L884 574 L866 724 L796 852 L674 938 L512 968 L350 938 L228 852 L158 724 L140 574 L168 432 L238 316 L352 168 L446 286 Z M316 612 a196 196 0 1 0 392 0 a196 196 0 1 0 -392 0 Z"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="56" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M416 530 L496 612 L416 694"/>
+    <path d="M554 696 L630 696"/>
+  </g>
+</svg>

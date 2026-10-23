@@ -1,0 +1,31 @@
+<Project>
+
+  <!--
+    Ajustes do controle nativo do Windows Terminal (pacote CI.Microsoft.Terminal.Wpf, trazido pelo
+    EasyWindowsTerminalControl). Ficam aqui porque o pacote chega ao Forge.Terminal (direto) e ao Forge.App
+    (transitivo); nos projetos que não o usam, nada acontece. Mesmo desenho do WSL Vision:
+    - Sem OpenConsole.exe: o conpty.dll do pacote cai no conhost do próprio Windows, e o .exe único não carrega o
+      OpenConsole (que nem seria extraído do pacote único).
+    - O .pdb da dll nativa (85 MB) é listado como arquivo de runtime: fica de fora, senão iria para dentro do .exe.
+    - O pacote foi gerado com "\" nos caminhos internos. No Windows o NuGet extrai normal; no Linux (build pelo WSL)
+      os arquivos ficam com "\" no próprio nome. Só fora do Windows, o build cria cópias com os caminhos certos.
+  -->
+  <PropertyGroup>
+    <ConptyRequiresx86Host>false</ConptyRequiresx86Host>
+    <ConptyRequiresx64Host>false</ConptyRequiresx64Host>
+    <ConptyRequiresARM64Host>false</ConptyRequiresARM64Host>
+    <TerminalWpfPackageDir>$([MSBuild]::EnsureTrailingSlash('$(NuGetPackageRoot)'))ci.microsoft.terminal.wpf/1.25.260303002/</TerminalWpfPackageDir>
+  </PropertyGroup>
+
+  <Target Name="FixTerminalWpfPackageOnLinux" BeforeTargets="ResolvePackageAssets" Condition="'$(OS)' != 'Windows_NT' And Exists('$(TerminalWpfPackageDir)')">
+    <Exec Command="cd &quot;$(TerminalWpfPackageDir)&quot; &amp;&amp; for f in *\\*; do [ -f &quot;%24f&quot; ] || continue; n=%24(printf '%s' &quot;%24f&quot; | tr '\\' '/'); mkdir -p &quot;%24(dirname &quot;%24n&quot;)&quot; &amp;&amp; cp -n &quot;%24f&quot; &quot;%24n&quot;; done" />
+  </Target>
+
+  <Target Name="DropTerminalNativePdb" AfterTargets="ResolvePackageAssets">
+    <ItemGroup>
+      <NativeCopyLocalItems Remove="@(NativeCopyLocalItems)" Condition="'%(Extension)' == '.pdb'" />
+      <RuntimeTargetsCopyLocalItems Remove="@(RuntimeTargetsCopyLocalItems)" Condition="'%(Extension)' == '.pdb'" />
+    </ItemGroup>
+  </Target>
+
+</Project>

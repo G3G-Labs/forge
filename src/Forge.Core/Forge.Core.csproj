@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    O núcleo: workspaces, persistência, shells, integração de shell, Git e ações. Nenhuma referência a WPF ou a APIs
+    só do Windows, então compila e é testado em qualquer sistema (inclusive no CI em Linux).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Forge.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Forge.Core.Tests" />
+  </ItemGroup>
+
+</Project>

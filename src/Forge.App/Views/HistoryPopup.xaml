@@ -1,0 +1,62 @@
+<UserControl
+    x:Class="Forge.App.Views.HistoryPopup"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:vm="clr-namespace:Forge.App.ViewModels"
+    mc:Ignorable="d"
+    d:DataContext="{d:DesignInstance Type=vm:HistorySearchViewModel}"
+    Width="720">
+
+    <!-- Ctrl+R: ↑↓ navegam, Enter cola o comando na aba atual (sem executar), Esc fecha. -->
+    <UserControl.InputBindings>
+        <KeyBinding Key="Up" Command="{Binding MoveSelectionCommand}" CommandParameter="{x:Static vm:HistoryKeys.Up}" />
+        <KeyBinding Key="Down" Command="{Binding MoveSelectionCommand}" CommandParameter="{x:Static vm:HistoryKeys.Down}" />
+        <KeyBinding Key="Enter" Command="{Binding PasteCommand}" />
+        <KeyBinding Key="Escape" Command="{Binding CloseCommand}" />
+    </UserControl.InputBindings>
+
+    <Border CornerRadius="12" Background="{DynamicResource Forge.RaisedBrush}" BorderBrush="{DynamicResource Forge.StrongLineBrush}" BorderThickness="1">
+        <DockPanel>
+            <DockPanel DockPanel.Dock="Top" Height="52" Margin="16,0">
+                <Border DockPanel.Dock="Right" Padding="2" CornerRadius="7" Background="{DynamicResource Forge.WindowBrush}"
+                        BorderBrush="{DynamicResource Forge.LineBrush}" BorderThickness="1" VerticalAlignment="Center">
+                    <ToggleButton IsChecked="{Binding OnlyThisFolder}" Content="Só esta pasta" Padding="10,4" FontSize="12" />
+                </Border>
+                <ui:SymbolIcon DockPanel.Dock="Left" Symbol="History24" FontSize="18" Foreground="{DynamicResource Forge.TextSecondaryBrush}" />
+                <TextBox x:Name="SearchBox" Margin="10,0" BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center"
+                         FontFamily="{DynamicResource Forge.FontMono}" FontSize="15" Foreground="{DynamicResource Forge.TextBrush}"
+                         CaretBrush="{DynamicResource Forge.TextBrush}" Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}"
+                         AutomationProperties.Name="Buscar comando" />
+            </DockPanel>
+            <Border DockPanel.Dock="Top" Height="1" Background="{DynamicResource Forge.LineBrush}" />
+
+            <Border DockPanel.Dock="Bottom" Height="36" Padding="16,0" Background="{DynamicResource Forge.ChromeBrush}" CornerRadius="0,0,12,12"
+                    BorderBrush="{DynamicResource Forge.LineBrush}" BorderThickness="0,1,0,0">
+                <DockPanel TextElement.FontSize="11.5" TextElement.Foreground="{DynamicResource Forge.TextMutedBrush}">
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding CountText}" VerticalAlignment="Center" />
+                    <TextBlock Text="↑↓ navegar    Enter colar na aba atual    Esc fechar" VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
+
+            <ListBox ItemsSource="{Binding Results}" SelectedItem="{Binding Selected}" MaxHeight="420" Margin="6"
+                     Background="Transparent" BorderThickness="0" MouseDoubleClick="OnResultDoubleClick">
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:HistoryItem}">
+                        <StackPanel Margin="6,4">
+                            <TextBlock Text="{Binding Command}" FontFamily="{DynamicResource Forge.FontMono}" FontSize="13" TextTrimming="CharacterEllipsis" />
+                            <DockPanel Margin="0,3,0,0" TextElement.FontSize="11.5" TextElement.Foreground="{DynamicResource Forge.TextMutedBrush}">
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding When}" />
+                                <TextBlock Text="{Binding Where}" />
+                                <TextBlock Text="·" Margin="6,0" />
+                                <TextBlock Text="{Binding Cwd}" FontFamily="{DynamicResource Forge.FontMono}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                            </DockPanel>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+    </Border>
+</UserControl>
